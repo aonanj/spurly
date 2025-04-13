@@ -1,6 +1,6 @@
 import logging
 import sys
-from services.clients import db
+from infrastructure.clients import db
 
 def setup_logger(name=__name__, level=logging.INFO, toFile=False, fileName="spurly_log.log"):
     logger = logging.getLogger(name)

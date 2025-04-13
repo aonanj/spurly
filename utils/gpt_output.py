@@ -1,6 +1,6 @@
 import json
 from .filters import apply_phrase_filter, apply_tone_overrides
-from .logger import get_logger, setup_logger
+from infrastructure.logger import get_logger, setup_logger
 from flask import current_app
 
 

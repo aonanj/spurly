@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 from flask import jsonify
 from utils.ocr_utils import extract_chat_messages, crop_top_bottom_cv
-from clients import vision_client
-from utils.logger import setup_logger
+from infrastructure.clients import vision_client
+from infrastructure.logger import setup_logger
 
 client = vision_client
 

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from services.ocr_service import process_image
-from utils.auth import require_auth
-from utils.logger import setup_logger
+from infrastructure.auth import require_auth
+from infrastructure.logger import setup_logger
 
 ocr_bp = Blueprint("ocr", __name__)
 

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.storage_service import save_feedback
-from utils.auth import require_auth
+from infrastructure.auth import require_auth
 
 feedback_bp = Blueprint("feedback", __name__)
 

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
-from utils.auth import generate_uid, create_jwt
-from services.clients import db
-from utils.logger import setup_logger
+from infrastructure.auth import generate_uid, create_jwt
+from infrastructure.clients import db
+from infrastructure.logger import setup_logger
 
 onboarding_bp = Blueprint("onboarding", __name__)
 

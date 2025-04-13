@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify, g
-from utils.auth import require_auth, generate_uid, create_jwt
-from services.clients import db
-from utils.logger import setup_logger
+from infrastructure.auth import require_auth
+from infrastructure.clients import db
+from infrastructure.logger import setup_logger
 from firebase_admin import auth
-from services.user_service import update_user_profile, save_user_profile, get_user_profile
+from services.user_service import update_user_profile
 
 user_management_bp = Blueprint("user_management", __name__)
 

@@ -1,7 +1,7 @@
-from clients import db
+from infrastructure.clients import db
 import uuid
 from flask import current_app, jsonify
-from utils.logger import setup_logger
+from infrastructure.logger import setup_logger
 
 def format_user_profile(user_id, profile_data):
     lines = [f"user_id: {user_id}"]

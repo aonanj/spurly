@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime
-from utils.auth import require_auth
-from utils.logger import setup_logger
+from infrastructure.auth import require_auth
+from infrastructure.logger import setup_logger
 
 from services.storage_service import (
     get_conversations,

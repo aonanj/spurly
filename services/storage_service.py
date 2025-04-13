@@ -2,8 +2,8 @@ from google.cloud import firestore
 from datetime import datetime 
 import uuid
 from gpt_training.anonymizer import anonymize_conversation
-from .clients import db
-from utils.logger import setup_logger
+from infrastructure.clients import db
+from infrastructure.logger import setup_logger
 
 
 def save_message(user_id, message):

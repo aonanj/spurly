@@ -3,9 +3,9 @@ from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
 from utils.trait_manager import infer_tone, infer_situation
-from .clients import chat_client
+from infrastructure.clients import chat_client
 from flask import current_app
-from utils.logger import setup_logger
+from infrastructure.logger import setup_logger
 
 
 

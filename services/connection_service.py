@@ -1,7 +1,7 @@
-from clients import db
+from infrastructure.clients import db
 import uuid
 from flask import current_app
-from utils.logger import setup_logger
+from infrastructure.logger import setup_logger
 
 def create_connection_profile(data):
     user_id = data.get("user_id")

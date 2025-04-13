@@ -10,8 +10,8 @@ from services.connection_service import (
      update_connection_profile,
      delete_connection_profile,
 )
-from utils.auth import require_auth
-from utils.logger import setup_logger
+from infrastructure.auth import require_auth
+from infrastructure.logger import setup_logger
 
 connection_bp = Blueprint("connection", __name__)
 

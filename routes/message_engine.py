@@ -2,8 +2,8 @@ from flask import Blueprint, request, jsonify, g, current_app
 from services.gpt_service import generate_spurs
 from services.connection_service import get_active_connection_firestore, get_user_connections
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
-from utils.auth import require_auth
-from utils.logger import setup_logger
+from infrastructure.auth import require_auth
+from infrastructure.logger import setup_logger
 
 message_bp = Blueprint("message", __name__)
 

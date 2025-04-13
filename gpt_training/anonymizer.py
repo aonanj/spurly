@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
-from services.clients import db
-from utils.logger import setup_logger
+from infrastructure.clients import db
+from infrastructure.logger import setup_logger
 
 
 def anonymize_conversation(convo, user_profile=None, connection_profile=None, situation="", topic=""):

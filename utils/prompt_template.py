@@ -1,6 +1,6 @@
 import json
 from flask import current_app
-from .logger import setup_logger
+from infrastructure.logger import setup_logger
 
 def build_prompt(selected_spurs: list[str], context_block: str) -> str:
     try:
