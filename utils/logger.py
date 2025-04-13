@@ -27,7 +27,3 @@ def setup_logger(name=__name__, level=logging.INFO, toFile=False, fileName="spur
 
 def get_logger(name=__name__):
     return logging.getLogger(name) 
-
-    if __name__ == "__main__":
-        logger1 = setup_logger(name="spurly.main")
-    return logging.getLogger(name)  # Return the logger instance

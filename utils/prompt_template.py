@@ -1,6 +1,5 @@
 import json
 from flask import current_app
-from flask import current_app  
 
 def build_prompt(selected_spurs: list[str], context_block: str) -> str:
     """
