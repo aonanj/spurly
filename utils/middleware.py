@@ -1,0 +1,77 @@
+from functools import wraps
+from flask import request, jsonify
+import utils.trait_manager as trait_manager
+from moderation import moderate_topic
+
+def sanitize_topic(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        context = getattr(request, "context", request.get_json() or {})
+        topic = context.get("topic", "")
+        filtered = False
+
+        if isinstance(topic, str):
+            topic = topic.strip()[:75]
+
+        result = moderate_topic(topic)
+        if not result["safe"]:
+            topic = ""
+            filtered = True
+
+        context["topic"] = topic
+        context["quick_topic_filtered"] = filtered
+        request.context = context
+
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def validate_sketch(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        data = request.get_json() or {}
+        user_sketch = data.get("user_sketch", {})
+        poi_sketch = data.get("poi_sketch", {})
+        
+        # Validate age field exists and is an integer >= 18
+        try:
+            age = int(user_sketch.get("age", 0))
+            if age < 18:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "User age must be at least 18"}), 400
+
+        if "age" in poi_sketch:
+            try:
+                poi_age = int(poi_sketch["age"])
+                if poi_age < 18:
+                    raise ValueError
+            except (ValueError, TypeError):
+                return jsonify({"error": "POI age must be at least 18 if provided"}), 400
+
+        return f(*args, **kwargs)
+    return wrapper
+
+def enrich_context(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        data = request.get_json() or {}
+        conversation = data.get("conversation", [])
+        user_sketch = data.get("user_sketch", {})
+        poi_sketch = data.get("poi_sketch", {})
+        
+        if not data.get("situation"):
+            try:
+                inferred = trait_manager.infer_situation(conversation)
+            except Exception:
+                inferred = {"situation": "cold_open", "confidence": "low"}
+            data["situation"] = inferred.get("situation", "cold_open")
+            data["situation_confidence"] = inferred.get("confidence", "low")
+        
+        # Attach enriched data to request context
+        
+        request.context = data
+        
+        return f(*args, **kwargs)
+    
+    return wrapper

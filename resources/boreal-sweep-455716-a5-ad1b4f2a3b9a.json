@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "boreal-sweep-455716-a5",
+  "private_key_id": "ad1b4f2a3b9a535443a59918af60e83775f469b7",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsxyglmWeDJhn7\nT/b2Izj+8ZCnmLGCxbuUttPi6NGENW7u/0z7sJFo0Mf5RzrznkhE6J8eGxhNaHeZ\nyk/3AVUXuJglEebLuXAvMxhlW/1FN4ftTiVxBrHIKzBRGGwbIox4Gv9ajAlDlB3o\nr1O0XvFnsnBCdhdcYGOByUw+ccyRCoS24cUIdLHizaLu+nUvVzIvvUa8y4lY4E2Q\nwbwYBysKaPrP1vLxJHmHRcSBscpyPaGobxuL9RXT7PsLeNSBb1leuslKnI0LblYb\nxK709FgBn8tjE5/Sdt0CZyex3ooOhCodLsuMwozPmE/uMh6/iOVSNRiQlnunhuw3\n6QpDl4lPAgMBAAECggEAOyYjFFwkF73ffy2s+i6swHqqbvXTL1XKFetRNolF0OEK\nDT/RdwjHfv6atzgvcl9plk2cy42zEC0HZNrh7UnDe89yJp6uSGg/g6kWXPzVA/Ey\n04bBQqRsEH7Yl6qot9FoDWYQrUrrkPsQEiyTl1g5hKqNy/LppHJLHo9vTqFeyvgi\nn1+MyYeJIITT5MjuKSq+5h3phUh2p5Gc7GpjfGK1TyF73eN9iQDnmgJrzEr1Z5Tk\nf9E4l96thN4CpIaJCs9CCXKcCaGGrwXbL03MM+2wsl3EfU3pytDV8JAweJEER5rE\nl2ZkFA2DurezNXTs4WocrrK8+B12ozVUmLMd0i9xoQKBgQDfEMfU/yWgNcUvAyWh\nwa4i+jPYA85dYCWxUtDEwWdmS6vudDdYV8YbK9iU6Y2RwC/3lsLKbGXJuvDfuoEX\nbj0B6XzWf2605LjToCLKe8SRsR7V9xR6SworVW8Eg5lJYEs1UhWA+6GbpVSTZ7kR\n3loBQRk3RDfpi0mqLlhRqwyAtQKBgQDGSadU2Elsxku5DIA4Oao+zYMMAq0p9oj+\nNbvXW6pK0TDxKb7IghwLn1zfGS6+wnU5AiK0bO3w0ifKaV9Hq9EGh070ndb8bfLH\nwK0I1FsI/sdCPwNPa0ef/yTx7PD9ZhM1fMpiUWVQjU/a3QGsL3gHhUWN1YnOk66W\nLRPF6H3YcwKBgEhxhrSh+HJDhDp0ZzBVWlx5rYSmF8szgopIPwznUtFiGgBjNeY2\n+1uvrbMO9q8zH2DlUXW0JoqRb9D5HRui7aVFUwnGcQnGjlAMXcAs2fYG8+DBUaE1\n5aOVJ2zr4Eh4QXSbp+gv0Jhf5UvKD8zBzbFClxHf0djDJ7VhP8WmK3VRAoGAMRMx\nktIk+gLp4taxNTkwZXK/qE1RRj16ElCCOP662uGDV2yZh06MWmQKvDyjURsXoBBj\nPnxnN18L8hC6QCbKCO+cHvahqsAbgkyxhqnoDgXgkwi9bP6EL5kaL7YQvuZwgqBs\nBoFWreULioOAUnk9H79gQ4ZCIRpz7z8g0a6E1vkCgYEArplpoyzjQnLyYf3YCqIy\nPBkVcrpcfSOp6Tw2DIC2/o6Fdl3QJnOCEbm2oj6GAgKUH9Zmx8fSn+R1/b+hp1Bi\ne6yW2+s4G6C1tqkLglYCupsmFZ8U3mlZsVlr4xh88/4pAtJrloF+f8Q2NOPAkPHZ\nN6OSlMIXXjEBJboYcw0Fxug=\n-----END PRIVATE KEY-----\n",
+  "client_email": "spurly-message-engine-service@boreal-sweep-455716-a5.iam.gserviceaccount.com",
+  "client_id": "102593758488985580734",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/spurly-message-engine-service%40boreal-sweep-455716-a5.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
