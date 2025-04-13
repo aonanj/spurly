@@ -16,15 +16,16 @@ def parse_gpt_output(gpt_response: str, user_sketch: dict, poi_sketch: dict) -> 
         # Step 2: Check all expected fields are present
         spur_keys = current_app.config["SPUR_VARIANTS"]
         for key in spur_keys:
-            if key not in parsed or not isinstance(parsed[key], str):
-                parsed[key] = parsed.get("warm_spur", "")
+            fallback = parsed.get("warm_spur") or parsed.get("spur") or ""
+            parsed[key] = fallback
 
         # Step 3: Apply phrase filter and sanitization
         safe_output = apply_phrase_filter(parsed)
         sanitized_output = apply_tone_overrides(safe_output, user_sketch, poi_sketch)
 
+        warm_fallback = sanitized_output.get("warm_spur")
         fallback_flags = {
-            key: sanitized_output[key] == sanitized_output["warm_spur"] and key != "warm_spur"
+            key: warm_fallback and sanitized_output[key] == warm_fallback and key != "warm_spur"
             for key in sanitized_output
         }
         

@@ -7,6 +7,7 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "spurly-default-key")
     GOOGLE_CLOUD_VISION_API_KEY = os.environ.get("GOOGLE_CLOUD_VISION_API_KEY", "")
     GOOGLE_CLOUD_FIRESTORE_API_KEY = os.environ.get("GOOGLE_CLOUD_FIRESTORE_API_KEY", "")
+    GOOGLE_CLOUD_FIREBASE_API_KEY = os.environ.get("GOOGLE_CLOUD_FIREBASE_API_KEY", "")
     GOOGLE_CLOUD_VERTEX_API_KEY = os.environ.get("GOOGLE_CLOUD_VERTEX_API_KEY", "")
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 

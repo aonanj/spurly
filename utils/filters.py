@@ -1,5 +1,6 @@
 import re
 from typing import Dict
+from utils.logger import setup_logger
 
 # === Phrase Blacklists and Regex ===
 BLACKLISTED_PHRASES = [
@@ -13,8 +14,8 @@ BLACKLISTED_PHRASES = [
 
 EXPIRED_PHRASES = {
     # Dynamic decay phrases (tagged with expiry epoch if needed)
-    "vibe check": "tier_1",
-    "that’s cap": "tier_2"
+    ##"vibe check": "tier_1",
+    ##"that’s cap": "tier_2"
 }
 
 # === Regex traps for formatting issues ===
@@ -66,15 +67,25 @@ def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
     Run filtering logic over all SPUR variants and apply fallback if unsafe.
     This should be run in the GPT output parsing pipeline before rendering.
     """
-    fallback = variants.get("warm_spur", "")
+    fallback = " "
+    if variants.get("main_spur", ""):
+        fallback = variants.get("main_spur", "")
+    elif variants.get("warm_spur", ""):
+        fallback = variants.get("warm_spur", "")
+    elif variants.get("cool_spur", ""):
+        fallback = variants.get("cool_spur", "")
+    elif variants.get("playful_spur", ""):
+        fallback = variants.get("playful_spur", "")
+    
     output = {}
 
     for key, message in variants.items():
         if safe_filter(message):
             output[key] = sanitize(message)
         else:
-            output[key] = fallback if key != "warm_spur" else ""
-            # Optionally log: fallback used for this variant
+            output[key] = fallback 
+            logger = setup_logger(name="output_parser_log.file", toFile=True, filename="output_parser.log")
+            logger.warning("Filtered unsafe message: %s", message)
 
     return output
 
@@ -85,7 +96,15 @@ def apply_tone_overrides(variants: Dict[str, str], user_sketch: dict, poi_sketch
     Adjusts or suppresses SPUR variants based on user/POI trait conflicts.
     Replaces affected variants with warm_spur fallback if necessary.
     """
-    override_spur = variants.get("warm_spur", "")
+    fallback = " "
+    if variants.get("main_spur", ""):
+        fallback = variants.get("main_spur", "")
+    elif variants.get("warm_spur", ""):
+        fallback = variants.get("warm_spur", "")
+    elif variants.get("cool_spur", ""):
+        fallback = variants.get("cool_spur", "")
+    elif variants.get("playful_spur", ""):
+        fallback = variants.get("playful_spur", "")
     output = variants.copy()
 
     def trait(key, default=None):
@@ -97,7 +116,9 @@ def apply_tone_overrides(variants: Dict[str, str], user_sketch: dict, poi_sketch
     if trait("drinking") == "Never":
         for key in output:
             if any(kw in output[key].lower() for kw in ["wine", "beer", "drink", "bar", "shots", "drinks"]):
-                output[key] = override_spur if key != "warm_spur" else ""
+                output[key] = fallback
+                logger = setup_logger(name="output_parser_log.file", toFile=True, filename="output_parser.log")
+                logger.warning("Filtered alcohol reference for sober POI: %s", output[key])
 
 
     return output
