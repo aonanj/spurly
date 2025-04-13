@@ -1,19 +1,25 @@
 import cv2
 import numpy as np
 import re
+from logger import setup_logger
 
 def get_text_from_element(element):
     """Extracts text from a Vision API element (Block, Paragraph, Word)."""
-    block_text = ""
-    for paragraph in getattr(element, 'paragraphs', []):
-        para_text = ""
-        for word in getattr(paragraph, 'words', []):
-            word_text = "".join([symbol.text for symbol in getattr(word, 'symbols', [])])
-            para_text += word_text + " " # Add space after each word (cleaned later)
-        block_text += para_text.strip()
-    if not block_text.strip() and hasattr(element, 'text'):
-         block_text = element.text
-    return block_text.strip()
+    try:
+        block_text = ""
+        for paragraph in getattr(element, 'paragraphs', []):
+            para_text = ""
+            for word in getattr(paragraph, 'words', []):
+                word_text = "".join([symbol.text for symbol in getattr(word, 'symbols', [])])
+                para_text += word_text + " " # Add space after each word (cleaned later)
+            block_text += para_text.strip()
+        if not block_text.strip() and hasattr(element, 'text'):
+            block_text = element.text
+        return block_text.strip()
+    except Exception as e:
+        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
+        logger.error("tils.ocr_utils.get_text_from_element error: %s", e)
+        raise e
 
 def crop_top_bottom_cv(img):
     """
@@ -37,7 +43,8 @@ def crop_top_bottom_cv(img):
     height, width = img.shape[:2]
 
     if height == 0 or width == 0:
-        print(f"Error: Invalid image dimensions (height={height}, width={width}).")
+        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
+        logger.error("tils.ocr_utils.crop_top_bottom_cv error")
         return None
 
     # Calculate the number of pixels to remove from the top (10%)
@@ -54,6 +61,8 @@ def crop_top_bottom_cv(img):
     end_row = height - bottom_crop_pixels
 
     if start_row >= end_row:
+        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
+        logger.error("tils.ocr_utils.crop_top_bottom_cv error")
         return None # Cannot perform a valid crop
 
     # Perform Cropping using NumPy slicing
@@ -109,82 +118,86 @@ def extract_chat_messages(page, confidence_threshold=0.80):
     compiled_fullmatch_patterns = [re.compile(p, re.IGNORECASE) for p in fullmatch_patterns]
     compiled_header_content_patterns = [re.compile(p, re.IGNORECASE) for p in header_content_patterns]
 
-    for i, block in enumerate(page.blocks):
-        if not block.bounding_box or not block.bounding_box.vertices or len(block.bounding_box.vertices) != 4:  ##Skip invalid/missing bounding box
-                continue
-        if block.confidence < confidence_threshold: ##Skip low confidence bounding box
-                continue
+    try:
+        for i, block in enumerate(page.blocks):
+            if not block.bounding_box or not block.bounding_box.vertices or len(block.bounding_box.vertices) != 4:  ##Skip invalid/missing bounding box
+                    continue
+            if block.confidence < confidence_threshold: ##Skip low confidence bounding box
+                    continue
 
-        vertices = block.bounding_box.vertices
-        ## verts_str = ", ".join([f"({v.x},{v.y})" for v in vertices])
-        y_position = min(v.y for v in vertices)
-        x_positions = [v.x for v in vertices]
-        min_x = min(x_positions)
-        max_x = max(x_positions)
+            vertices = block.bounding_box.vertices
+            ## verts_str = ", ".join([f"({v.x},{v.y})" for v in vertices])
+            y_position = min(v.y for v in vertices)
+            x_positions = [v.x for v in vertices]
+            min_x = min(x_positions)
+            max_x = max(x_positions)
 
-        # --- Speaker Assignment (Midpoint Heuristic) ---
-        block_mid_x = (min_x + max_x) / 2
-        speaker = "Party B" if block_mid_x < image_center_x else "Party A"
-        block_text = ""
-        for paragraph in block.paragraphs:
-            words = [symbol for word in paragraph.words for symbol in word.symbols]
-            confidences = [symbol.confidence for symbol in words if hasattr(symbol, 'confidence')]
-            low_conf_count = sum(1 for c in confidences if c < confidence_threshold)
-            total_conf_count = len(confidences)
+            # --- Speaker Assignment (Midpoint Heuristic) ---
+            block_mid_x = (min_x + max_x) / 2
+            speaker = "Party B" if block_mid_x < image_center_x else "Party A"
+            block_text = ""
+            for paragraph in block.paragraphs:
+                words = [symbol for word in paragraph.words for symbol in word.symbols]
+                confidences = [symbol.confidence for symbol in words if hasattr(symbol, 'confidence')]
+                low_conf_count = sum(1 for c in confidences if c < confidence_threshold)
+                total_conf_count = len(confidences)
 
-            if total_conf_count > 0 and (low_conf_count / total_conf_count) > 0.5:
-                block_data_for_sorting.append({
-                    "speaker": speaker,
-                    "text": " ",
-                    "unreadable": True,
-                    "y_pos": y_position
-                })
+                if total_conf_count > 0 and (low_conf_count / total_conf_count) > 0.5:
+                    block_data_for_sorting.append({
+                        "speaker": speaker,
+                        "text": " ",
+                        "unreadable": True,
+                        "y_pos": y_position
+                    })
+                    is_non_message = True
+                else:
+                    block_text = get_text_from_element(block)
+                    is_non_message = False
+
+            # --- Filtering ---
+            if not block_text:
                 is_non_message = True
             else:
-                block_text = get_text_from_element(block)
-                is_non_message = False
-
-        # --- Filtering ---
-        if not block_text:
-            is_non_message = True
-        else:
-            # 1. Check for full matches (timestamps, specific labels, etc.)
-            for pattern in compiled_fullmatch_patterns:
-                if pattern.fullmatch(block_text):
-                    is_non_message = True
-                    break
-            # 2. If not filtered yet, check for header content *if* block is near the top
-            if not is_non_message and y_position < image_height * 0.15: # Check top 15%
-                for pattern in compiled_header_content_patterns:
-                    # Use re.search to find the pattern anywhere in the block text
-                    if pattern.search(block_text):
+                # 1. Check for full matches (timestamps, specific labels, etc.)
+                for pattern in compiled_fullmatch_patterns:
+                    if pattern.fullmatch(block_text):
                         is_non_message = True
                         break
-        if is_non_message:
-            continue # Skip this block if filtered
+                # 2. If not filtered yet, check for header content *if* block is near the top
+                if not is_non_message and y_position < image_height * 0.15: # Check top 15%
+                    for pattern in compiled_header_content_patterns:
+                        # Use re.search to find the pattern anywhere in the block text
+                        if pattern.search(block_text):
+                            is_non_message = True
+                            break
+            if is_non_message:
+                continue # Skip this block if filtered
 
-        # --- Text Cleanup (Punctuation, Quotes, Spacing) ---
-        cleaned_text = re.sub(r'\s+([.,?!;:])', r'\1', block_text)
-        cleaned_text = re.sub(r'(")\s+', r'\1', cleaned_text)
-        cleaned_text = re.sub(r'\s+(")', r'\1', cleaned_text)
-        cleaned_text = re.sub(r'\s+(\'\w+)', r'\1', cleaned_text)
-        cleaned_text = re.sub(r'([.?!])(\w)', r'\1 \2', cleaned_text)
-        cleaned_text = re.sub(r'\s{2,}', ' ', cleaned_text).strip()
+            # --- Text Cleanup (Punctuation, Quotes, Spacing) ---
+            cleaned_text = re.sub(r'\s+([.,?!;:])', r'\1', block_text)
+            cleaned_text = re.sub(r'(")\s+', r'\1', cleaned_text)
+            cleaned_text = re.sub(r'\s+(")', r'\1', cleaned_text)
+            cleaned_text = re.sub(r'\s+(\'\w+)', r'\1', cleaned_text)
+            cleaned_text = re.sub(r'([.?!])(\w)', r'\1 \2', cleaned_text)
+            cleaned_text = re.sub(r'\s{2,}', ' ', cleaned_text).strip()
 
-        block_data_for_sorting.append({
-            "speaker": speaker,
-            "text": cleaned_text,
-            "y_pos": y_position
-        })
+            block_data_for_sorting.append({
+                "speaker": speaker,
+                "text": cleaned_text,
+                "y_pos": y_position
+            })
 
-    block_data_for_sorting.sort(key=lambda msg: msg['y_pos'])
-    structured_messages = [
-        {
-            "speaker": msg["speaker"], 
-            "text": msg["text"],
-            **({"unreadable": True} if msg.get("unreadable") else{})
-        }
-        for msg in block_data_for_sorting
-    ]
+        block_data_for_sorting.sort(key=lambda msg: msg['y_pos'])
+        structured_messages = [
+            {
+                "speaker": msg["speaker"], 
+                "text": msg["text"],
+                **({"unreadable": True} if msg.get("unreadable") else{})
+            }
+            for msg in block_data_for_sorting
+        ]
 
-    return structured_messages
+        return structured_messages
+    except Exception as e:
+        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
+        logger.error("tils.ocr_utils.extract_chat_messages error: %s", e)  

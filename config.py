@@ -28,3 +28,5 @@ class Config:
     }
 
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week
+
+    NULL_CID = "generic_cid"

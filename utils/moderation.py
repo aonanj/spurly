@@ -1,6 +1,7 @@
 import re
 import openai
 from services.clients import mod_client
+from logger import setup_logger
 
 # Static hard-block list (expandable)
 BANNED_PHRASES = [
@@ -37,6 +38,10 @@ def moderate_topic(text: str) -> dict:
     return {"safe": True}
 
 def moderate_with_openai(text):
-    response = mod_client.create(input=text)
-    flagged = response["results"][0]["flagged"]
-    return {"safe": True} if not flagged else {"safe": False, "reason": "openai_moderation"}  
+    try:
+        response = mod_client.create(input=text)
+        flagged = response["results"][0]["flagged"]
+        return {"safe": True} if not flagged else {"safe": False, "reason": "openai_moderation"}  
+    except Exception as e:
+        logger = setup_logger(name="moderation_log.file", toFile=True, filename="moderation.log")
+        logger.error("tils.moderation.moderate_with_openai error: %s", e)

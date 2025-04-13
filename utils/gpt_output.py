@@ -1,6 +1,6 @@
 import json
 from .filters import apply_phrase_filter, apply_tone_overrides
-from .logger import get_logger
+from .logger import get_logger, setup_logger
 from flask import current_app
 
 
@@ -43,7 +43,8 @@ def parse_gpt_output(gpt_response: str, user_sketch: dict, poi_sketch: dict) -> 
         return sanitized_output
 
     except (json.JSONDecodeError, TypeError) as e:
-        # Log error here
+        logger = setup_logger(name="gpt_output_log.file", toFile=True, filename="gpt_output.log")
+        logger.error("utils.gpt_output.parse_gpt_output error: %s", e)
         return {
             "main_spur": "",
             "warm_spur": "",

@@ -13,15 +13,20 @@ from services.profile_service import (
      delete_poi_profile,
 )
 from utils.auth import require_auth
+from flask import current_app
+from utils.logger import setup_logger
 
 profiles_bp = Blueprint("profiles", __name__)
 
 @profiles_bp.route("/user-sketch", methods=["POST"])
 @require_auth
 def save_user():
-    data = request.get_json()
-    result = save_user_profile(data)
-    return jsonify(result)
+    try:
+        data = request.get_json()
+        result = save_user_profile(data)
+        return jsonify(result)
+    except Exception as e:
+        setup_logger()
 
 @profiles_bp.route("/poi-sketch", methods=["POST"])
 @require_auth
@@ -49,10 +54,14 @@ def fetch_user_pois():
 def set_active_poi():
     data = request.get_json()
     user_id = data.get("user_id")
-    poi_id = data.get("poi_id")
-    if not user_id or not poi_id:
-        return jsonify({"error": "Missing user_id or poi_id"}), 400
-    result = set_active_poi_firestore(user_id, poi_id)
+    if data.get("cid"):
+        cid = data["cid"]
+    else:
+        cid = f"{user_id}:{current_app.config['NULL_CID']}"
+
+    if not user_id or not cid:
+        return jsonify({"error": "Missing user_id or cid"}), 400
+    result = set_active_poi_firestore(user_id, cid)
     return jsonify(result)
 
 @profiles_bp.route("/poi-active", methods=["GET"])

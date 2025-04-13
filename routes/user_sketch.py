@@ -78,6 +78,8 @@ def get_user_sketch_bp():
         doc = user_ref.get()
 
         if not doc.exists:
+            logger = setup_logger(name="user_sketch_log.file", toFile=True, filename="user_sketch.log")
+            logger.error("Get user sketch error: doc not found")
             return jsonify({"error": "User sketch not found."}), 404
 
         data = doc.to_dict()

@@ -2,6 +2,7 @@ from functools import wraps
 from flask import request, jsonify
 import utils.trait_manager as trait_manager
 from moderation import moderate_topic
+from utils.logger import setup_logger
 
 def sanitize_topic(f):
     @wraps(f)
@@ -37,8 +38,11 @@ def validate_sketch(f):
         try:
             age = int(user_sketch.get("age", 0))
             if age < 18:
+                logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
+                logger.error("utils.middleware.validate_sketch error: age verification failure")
                 raise ValueError
         except (ValueError, TypeError):
+
             return jsonify({"error": "User age must be at least 18"}), 400
 
         if "age" in poi_sketch:
@@ -47,6 +51,8 @@ def validate_sketch(f):
                 if poi_age < 18:
                     raise ValueError
             except (ValueError, TypeError):
+                logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
+                logger.error("utils.middleware.validate_sketch error: age verification failure")
                 return jsonify({"error": "POI age must be at least 18 if provided"}), 400
 
         return f(*args, **kwargs)
@@ -57,13 +63,13 @@ def enrich_context(f):
     def wrapper(*args, **kwargs):
         data = request.get_json() or {}
         conversation = data.get("conversation", [])
-        user_sketch = data.get("user_sketch", {})
-        poi_sketch = data.get("poi_sketch", {})
         
         if not data.get("situation"):
             try:
                 inferred = trait_manager.infer_situation(conversation)
-            except Exception:
+            except Exception as e:
+                logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
+                logger.error("tils.middleware.enrich_context error: %s", e)
                 inferred = {"situation": "cold_open", "confidence": "low"}
             data["situation"] = inferred.get("situation", "cold_open")
             data["situation_confidence"] = inferred.get("confidence", "low")

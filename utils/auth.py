@@ -8,12 +8,18 @@ def generate_uid() -> str:
     return f"u{uuid4().hex[:8]}"
 
 def create_jwt(uid:str) -> str:
-    payload = {
-        "uid": uid,
-        "exp": current_app.config["JWT_EXPIRATION"],
-    }
-    token = jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
-    return token
+    try:
+        payload = {
+            "uid": uid,
+            "exp": current_app.config["JWT_EXPIRATION"],
+        }
+        token = jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+        return token
+    except Exception as e:
+        logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
+        logger.error("Error in utils.auth.create_jwt: %s", e)
+        return {"error": str(e)}, 500
+
 
 def decode_jwt(token: str) -> dict:
     try:
@@ -38,10 +44,12 @@ def require_auth(f):
             if len(parts) == 2 and parts[0].lower() == "bearer":
                 token = parts[1]
             else:
+                logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
                 logger.warning("Invalid authorization header format")
                 return jsonify({"error": "Invalid authorization header"}), 401
             
         if not token:
+            logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
             logger.warning("Token not provided")
             return jsonify({"error": "Token not provided"}), 401
 

@@ -5,6 +5,7 @@ from utils.validation import validate_and_normalize_output, classify_confidence,
 from utils.trait_manager import infer_tone, infer_situation
 from .clients import chat_client
 from flask import current_app
+from utils.logger import setup_logger
 
 
 
@@ -69,7 +70,9 @@ def generate_spurs(valid_spurs, conversation, user_sketch, poi_sketch, situation
             validated_output, fallback_flags = validate_and_normalize_output(gpt_parsed_filtered_output)
             return validated_output, fallback_flags
 
-        except Exception:
+        except Exception as e:
+            logger = setup_logger(name="gpt_service_log.file", toFile=True, filename="gpt_service.log")
+            logger.error("GPT generation failed: %s", str(e))
             if attempt == 2:
                 return fallback_response
             continue
