@@ -37,3 +37,4 @@ def build_prompt(selected_spurs: list[str], context_block: str) -> str:
     except Exception as e:
         logger = setup_logger(name="prompt_template_log.file", toFile=True, filename="prompt_template.log")
         logger.error("tils.prompt_template.build_prompt error: %s", e)  
+        raise e

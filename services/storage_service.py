@@ -75,20 +75,20 @@ def save_conversation(user_id, data):
         logger.error("Missing user_id in /conversations route: save_conversation")
         return {"error": "Missing user_id"}, 400
 
-    cid = data.get("cid")
-    if not cid or not cid.startswith(f"{user_id}:"):
+    connection_id = data.get("connection_id")
+    if not connection_id or not connection_id.startswith(f"{user_id}:"):
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing cid in /conversations route: save_conversation")
-        return {"error": "Invalid or missing cid"}, 400
+        logger.error("Missing connection_id in /conversations route: save_conversation")
+        return {"error": "Invalid or missing connection_id"}, 400
 
     try:
         conversation_id = str(uuid.uuid4())
         doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
 
         doc_data = {
-            "cid": cid,
+            "connection_id": connection_id,
             "conversation": data.get("conversation", []),
-            "cid": data.get("cid", None),
+            "connection_id": data.get("connection_id", None),
             "situation": data.get("situation", ""),
             "topic": data.get("topic", ""),
             "spurs": data.get("spurs", {}),
@@ -97,8 +97,8 @@ def save_conversation(user_id, data):
 
         anonymize_conversation(
             data.get("conversation", []),
-            data.get("user_sketch", {}),
-            data.get("poi_sketch", {}),
+            data.get("user_profile", {}),
+            data.get("connection_profile", {}),
             data.get("situation", ""),
             data.get("topic", "")
         )
@@ -153,7 +153,7 @@ def get_conversations(user_id, filters=None):
      1. keyword: searches for keyword in situation, topic, and conversation text
      2. date_from: searches for conversations created after this date
      3. date_to: searches for conversations created before this date
-     4. cid: searches for conversations with this cid
+     4. connection_id: searches for conversations with this connection_id
     
     """
     if not user_id:
@@ -174,7 +174,7 @@ def get_conversations(user_id, filters=None):
 
         for convo in convos:
             data = convo.to_dict()
-            cid = data.get("cid", "(none)")
+            connection_id = data.get("connection_id", "(none)")
 
             if filters and keyword:
                 in_topic = keyword in (data.get("topic", "").lower())
@@ -183,10 +183,10 @@ def get_conversations(user_id, filters=None):
                 if not (in_topic or in_situation or in_convo_text):
                     continue  # Skip non-matches
 
-            if cid not in grouped:
-                grouped[cid] = []
+            if connection_id not in grouped:
+                grouped[connection_id] = []
 
-            grouped[cid].append({
+            grouped[connection_id].append({
                 "conversation_id": convo.id,
                 "preview": data.get("conversation", [])[-1]["text"] if data.get("conversation") else "",
                 "created_at": data.get("created_at"),

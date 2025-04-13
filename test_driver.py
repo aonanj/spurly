@@ -8,10 +8,10 @@ BASE_URL = "http://127.0.0.1:5000/"
 payload = {
     "conversation": [
         {"speaker": "user", "text": "Hey, how was your weekend?"},
-        {"speaker": "poi", "text": "Pretty good—mostly relaxed and caught up on sleep."},
+        {"speaker": "connection", "text": "Pretty good—mostly relaxed and caught up on sleep."},
         {"speaker": "user", "text": "Nice. Any good shows or books?"}
     ],
-    "user_sketch": {
+    "user_profile": {
         "Tone": "warm",
         "Humor Style": "sarcastic",
         "Flirt Level": "medium",
@@ -19,7 +19,7 @@ payload = {
         "Banter Tolerance": "high",
         "Emoji Use": "occasionally"
     },
-    "poi_sketch": {
+    "connection_profile": {
         "Tone Baseline": "cool",
         "Flirt Level": "low",
         "Openness": "high",

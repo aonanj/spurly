@@ -27,33 +27,33 @@ def sanitize_topic(f):
     return wrapper
 
 
-def validate_sketch(f):
+def validate_profile(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         data = request.get_json() or {}
-        user_sketch = data.get("user_sketch", {})
-        poi_sketch = data.get("poi_sketch", {})
+        user_profile = data.get("user_profile", {})
+        connection_profile = data.get("connection_profile", {})
         
         # Validate age field exists and is an integer >= 18
         try:
-            age = int(user_sketch.get("age", 0))
+            age = int(user_profile.get("age", 0))
             if age < 18:
                 logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
-                logger.error("utils.middleware.validate_sketch error: age verification failure")
+                logger.error("utils.middleware.validate_profile error: age verification failure")
                 raise ValueError
         except (ValueError, TypeError):
 
             return jsonify({"error": "User age must be at least 18"}), 400
 
-        if "age" in poi_sketch:
+        if "age" in connection_profile:
             try:
-                poi_age = int(poi_sketch["age"])
-                if poi_age < 18:
+                connection_age = int(connection_profile["age"])
+                if connection_age < 18:
                     raise ValueError
             except (ValueError, TypeError):
                 logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
-                logger.error("utils.middleware.validate_sketch error: age verification failure")
-                return jsonify({"error": "POI age must be at least 18 if provided"}), 400
+                logger.error("utils.middleware.validate_profile error: age verification failure")
+                return jsonify({"error": "connection age must be at least 18 if provided"}), 400
 
         return f(*args, **kwargs)
     return wrapper

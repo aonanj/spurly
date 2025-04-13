@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from utils.auth import require_auth, generate_uid, create_jwt
+from utils.auth import generate_uid, create_jwt
 from services.clients import db
 from utils.logger import setup_logger
 
@@ -21,7 +21,7 @@ def onboarding():
             val = data.get(key)
             return f"{key.capitalize()}: {val}" if val else None
         
-        sketch_fields = [
+        profile_fields = [
             f"UID: {uid}",
             f"Age: {age}",
             format_field("name"),
@@ -45,23 +45,23 @@ def onboarding():
         red = data.get("redlight_topics", [])
 
         if green:
-            sketch_fields.append(f"Greenlight Topics: {', '.join(green)}")
+            profile_fields.append(f"Greenlight Topics: {', '.join(green)}")
         if red:
-            sketch_fields.append(f"Redlight Topics: {', '.join(red)}")
+            profile_fields.append(f"Redlight Topics: {', '.join(red)}")
 
-        user_sketch = "\n".join(f for f in sketch_fields if f)
+        user_profile = "\n".join(f for f in profile_fields if f)
 
         # Save structured and formatted data to Firestore
         user_ref = db.collection("users").document(uid)
         user_ref.set({
             "uid": uid,
-            "sketch_text": user_sketch,
+            "profile_text": user_profile,
             "fields": {k: v for k, v in data.items() if v is not None}
         })
 
         return jsonify({
             "uid": uid,
-            "user_sketch": user_sketch
+            "user_profile": user_profile
         })
     except Exception as e:
         setup_logger(name="onboarding_log.file", toFile=True, filename="onboarding.log").error(f"Error onboarding: {e}")

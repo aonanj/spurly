@@ -17,7 +17,7 @@ conversations_bp = Blueprint("conversations", __name__)
 
 @conversations_bp.route("/conversations", methods=["GET"])
 @require_auth
-def fetch_conversations():
+def get_conversations_bp():
     user_id = request.args.get("user_id")
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
@@ -44,7 +44,7 @@ def fetch_conversations():
 
 @conversations_bp.route("/conversations", methods=["POST"])
 @require_auth
-def store_conversation():
+def save_conversation_bp():
     data = request.get_json()
     user_id = data.get("user_id")
     if not user_id:
@@ -56,7 +56,7 @@ def store_conversation():
 
 @conversations_bp.route("/conversations/<conversation_id>", methods=["GET"])
 @require_auth
-def fetch_conversation(conversation_id):
+def get_conversation_bp(conversation_id):
     user_id = request.args.get("user_id")
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
@@ -67,7 +67,7 @@ def fetch_conversation(conversation_id):
 
 @conversations_bp.route("/conversations/<conversation_id>", methods=["DELETE"])
 @require_auth
-def remove_conversation(conversation_id):
+def delete_conversation_bp(conversation_id):
     user_id = request.args.get("user_id")
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
@@ -78,7 +78,7 @@ def remove_conversation(conversation_id):
 
 @conversations_bp.route("/saved-messages", methods=["GET"])
 @require_auth
-def fetch_saved_messages():
+def fetch_saved_messages_bp():
     user_id = request.args.get("user_id")
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
@@ -113,7 +113,7 @@ def fetch_saved_messages():
 
 @conversations_bp.route("/saved-messages", methods=["POST"])
 @require_auth
-def store_saved_message():
+def save_message_bp():
     data = request.get_json()
     user_id = data.get("user_id")
     if not user_id:
@@ -127,7 +127,7 @@ def store_saved_message():
 
 @conversations_bp.route("/saved-messages/<message_id>", methods=["DELETE"])
 @require_auth
-def remove_saved_message(message_id):
+def delete_saved_message_bp(message_id):
     user_id = request.args.get("user_id")
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")

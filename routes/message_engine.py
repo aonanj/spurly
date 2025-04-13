@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from services.gpt_service import generate_spurs
-from services.profile_service import get_active_poi_firestore, get_user_pois
-from utils.middleware import enrich_context, validate_sketch, sanitize_topic
+from services.connection_service import get_active_connection_firestore, get_user_connections
+from utils.middleware import enrich_context, validate_profile, sanitize_topic
 from utils.auth import require_auth
 from utils.logger import setup_logger
 
@@ -9,16 +9,16 @@ message_bp = Blueprint("message", __name__)
 
 @message_bp.route("/generate", methods=["POST"])
 @require_auth
-@validate_sketch
+@validate_profile
 @enrich_context
 @sanitize_topic
 def generate():
     data = request.get_json()
     user_id = data.get("user_id")
     conversation = data.get("conversation", "")
-    user_sketch = data.get("user_sketch", {})
-    active_cid = data.get("cid")
-    poi_sketch = data.get("poi_sketch", {})
+    user_profile = data.get("user_profile", {})
+    active_connection_id = data.get("connection_id")
+    connection_profile = data.get("connection_profile", {})
     situation = data.get("situation", "")
     topic = data.get("topic", None)
 
@@ -27,20 +27,22 @@ def generate():
         logger.error("Missing user_id in /generate route")
         return jsonify({"error": "Missing user_id"}), 400
 
-    # Auto-load POI sketch if not provided
-    if not poi_sketch:
-        active_poi = get_active_poi_firestore(user_id).get("active_poi")
-        if active_poi and active_poi.casefold() != (f"{user_id}:current_app.config['NULL_CID']").casefold():
-            all_pois = get_user_pois(user_id).get("pois", [])
-            match = next((p for p in all_pois if p.get("cid") == active_poi), {})
-            poi_sketch = match
+    if not active_connection_id:
+        active_connection_id = get_active_connection_firestore(user_id).get("active_connection_id")
+
+    # Auto-load connection profile if not provided
+    if not connection_profile:
+        if active_connection_id and active_connection_id.casefold() != (f"{user_id}:current_app.config['NULL_connection_id']").casefold():
+            all_connections = get_user_connections(user_id).get("connections", [])
+            match = next((p for p in all_connections if p.get("connection_id") == active_connection_id), {})
+            connection_profile = match
         else:
-            poi_sketch = None
+            connection_profile = None
     
     spurs, fallback_flags = generate_spurs(
         conversation=conversation,
-        user_sketch=user_sketch,
-        poi_sketch=poi_sketch,
+        user_profile=user_profile,
+        connection_profile=connection_profile,
         situation=situation,
         topic=topic,
     )

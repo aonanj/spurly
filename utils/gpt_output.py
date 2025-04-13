@@ -4,7 +4,7 @@ from .logger import get_logger, setup_logger
 from flask import current_app
 
 
-def parse_gpt_output(gpt_response: str, user_sketch: dict, poi_sketch: dict) -> dict:
+def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: dict) -> dict:
     """
     Parse GPT response into usable SPUR variants with safety filtering and fallbacks.
     """
@@ -21,7 +21,7 @@ def parse_gpt_output(gpt_response: str, user_sketch: dict, poi_sketch: dict) -> 
 
         # Step 3: Apply phrase filter and sanitization
         safe_output = apply_phrase_filter(parsed)
-        sanitized_output = apply_tone_overrides(safe_output, user_sketch, poi_sketch)
+        sanitized_output = apply_tone_overrides(safe_output, user_profile, connection_profile)
 
         warm_fallback = sanitized_output.get("warm_spur")
         fallback_flags = {
@@ -32,10 +32,10 @@ def parse_gpt_output(gpt_response: str, user_sketch: dict, poi_sketch: dict) -> 
         get_logger().info({
             "event": "spurly_generation_log",
             "fallback_flags": fallback_flags,
-            "input_sketch_summary": {
-                "user_tone": user_sketch.get("tone"),
-                "poi_flirt": poi_sketch.get("flirt_level"),
-                "poi_drinking": poi_sketch.get("drinking"),
+            "input_profile_summary": {
+                "user_tone": user_profile.get("tone"),
+                "connection_flirt": connection_profile.get("flirt_level"),
+                "connection_drinking": connection_profile.get("drinking"),
             },
             "filter_hits": [k for k, v in fallback_flags.items() if v],
         })

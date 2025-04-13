@@ -10,7 +10,7 @@ from utils.logger import setup_logger
 
 
 
-def generate_spurs(valid_spurs, conversation, user_sketch, poi_sketch, situation=None, topic=None):
+def generate_spurs(valid_spurs, conversation, user_profile, connection_profile, situation=None, topic=None):
     """
     Main GPT call wrapper: builds prompt, validates output, applies filters.
     Includes retry logic with safety fallback.
@@ -29,8 +29,8 @@ def generate_spurs(valid_spurs, conversation, user_sketch, poi_sketch, situation
 
     context_block = (
         conversation,
-        user_sketch,
-        poi_sketch,
+        user_profile,
+        connection_profile,
         situation,
         topic,
         tone
@@ -63,7 +63,7 @@ def generate_spurs(valid_spurs, conversation, user_sketch, poi_sketch, situation
             spur_redos = spurs_to_regenerate(gpt_parsed_filtered_output)
 
             if spur_redos:
-                regenerated_output=generate_spurs(spur_redos, conversation, user_sketch, poi_sketch, situation, topic)
+                regenerated_output=generate_spurs(spur_redos, conversation, user_profile, connection_profile, situation, topic)
                 gpt_parsed_filtered_output.update(regenerated_output)
 
             

@@ -4,16 +4,16 @@ from services.clients import db
 from utils.logger import setup_logger
 
 
-def anonymize_conversation(convo, user_sketch=None, poi_sketch=None, situation="", topic=""):
+def anonymize_conversation(convo, user_profile=None, connection_profile=None, situation="", topic=""):
     """
     Replaces speaker labels with generic gender-based labels when available,
-    or falls back to 'Person A' and 'Person B' for user and POI respectively.
+    or falls back to 'Person A' and 'Person B' for user and connection respectively.
     Maintains message order and speaker attribution.
 
     Args:
         Convo (list[dict]): List of dictionaries (messages) in the conversation. JSON format.
-        user_sketch (dict): User sketch containing user information.
-        poi_sketch (dict): POI sketch containing POI information.
+        user_profile (dict): User profile containing user information.
+        connection_profile (dict): connection profile containing connection information.
         situation (str): Situation description.
         topic (str): Topic description.
 
@@ -23,23 +23,23 @@ def anonymize_conversation(convo, user_sketch=None, poi_sketch=None, situation="
     try:
         if not convo or not isinstance(convo, list):
             raise ValueError("Invalid conversation format. Expected a list of messages.")
-        elif user_sketch is None or not isinstance(user_sketch, dict):
-            raise ValueError("Invalid user sketch format. Expected a dictionary.")
-        elif poi_sketch is None or not isinstance(poi_sketch, dict):
-            raise ValueError("Invalid POI sketch format. Expected a dictionary.")   
+        elif user_profile is None or not isinstance(user_profile, dict):
+            raise ValueError("Invalid user profile format. Expected a dictionary.")
+        elif connection_profile is None or not isinstance(connection_profile, dict):
+            raise ValueError("Invalid connection profile format. Expected a dictionary.")   
 
         if not all("text" in message and "speaker" in message for message in convo):
             raise ValueError("Invalid conversation format. Each message must contain 'text' and 'speaker' keys.")
         
-        if not isinstance(user_sketch.get("gender"), str):
+        if not isinstance(user_profile.get("gender"), str):
             user_label = "Person A"
         else:
-            user_label = f"{user_sketch.get("gender").capitalize()} Speaker"
+            user_label = f"{user_profile.get("gender").capitalize()} Speaker"
 
-        if not isinstance(poi_sketch.get("gender"), str):
-            poi_label = "Person B"
+        if not isinstance(connection_profile.get("gender"), str):
+            connection_label = "Person B"
         else:
-            poi_label = f"{poi_sketch.get("gender").capitalize()} Speaker"
+            connection_label = f"{connection_profile.get("gender").capitalize()} Speaker"
 
         anonymized_messages = []
         for message in convo:
@@ -48,8 +48,8 @@ def anonymize_conversation(convo, user_sketch=None, poi_sketch=None, situation="
 
             if original_speaker == "user":
                 speaker_label = user_label
-            elif original_speaker == "poi":
-                speaker_label = poi_label
+            elif original_speaker == "connection":
+                speaker_label = connection_label
             else:
                 speaker_label = "Unknown"
 

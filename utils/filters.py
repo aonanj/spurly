@@ -91,9 +91,9 @@ def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
 
 from typing import Dict
 
-def apply_tone_overrides(variants: Dict[str, str], user_sketch: dict, poi_sketch: dict) -> Dict[str, str]:
+def apply_tone_overrides(variants: Dict[str, str], user_profile: dict, connection_profile: dict) -> Dict[str, str]:
     """
-    Adjusts or suppresses SPUR variants based on user/POI trait conflicts.
+    Adjusts or suppresses SPUR variants based on user/connection trait conflicts.
     Replaces affected variants with warm_spur fallback if necessary.
     """
     fallback = " "
@@ -108,17 +108,17 @@ def apply_tone_overrides(variants: Dict[str, str], user_sketch: dict, poi_sketch
     output = variants.copy()
 
     def trait(key, default=None):
-        return poi_sketch.get(key) or user_sketch.get(key, default)
+        return connection_profile.get(key) or user_profile.get(key, default)
 
     # === Override Rules ===
 
-    # Rule: No alcohol references if POI is sober
+    # Rule: No alcohol references if connection is sober
     if trait("drinking") == "Never":
         for key in output:
             if any(kw in output[key].lower() for kw in ["wine", "beer", "drink", "bar", "shots", "drinks"]):
                 output[key] = fallback
                 logger = setup_logger(name="output_parser_log.file", toFile=True, filename="output_parser.log")
-                logger.warning("Filtered alcohol reference for sober POI: %s", output[key])
+                logger.warning("Filtered alcohol reference for sober connection: %s", output[key])
 
 
     return output
