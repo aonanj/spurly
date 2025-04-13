@@ -1,6 +1,6 @@
 import re
 from typing import Dict
-from utils.logger import setup_logger
+from .logger import setup_logger
 
 # === Phrase Blacklists and Regex ===
 BLACKLISTED_PHRASES = [

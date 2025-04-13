@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g, current_app
 from services.gpt_service import generate_spurs
 from services.connection_service import get_active_connection_firestore, get_user_connections
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
@@ -14,7 +14,7 @@ message_bp = Blueprint("message", __name__)
 @sanitize_topic
 def generate():
     data = request.get_json()
-    user_id = data.get("user_id")
+    user_id = g.user['uid']
     conversation = data.get("conversation", "")
     user_profile = data.get("user_profile", {})
     active_connection_id = data.get("connection_id")
@@ -32,7 +32,7 @@ def generate():
 
     # Auto-load connection profile if not provided
     if not connection_profile:
-        if active_connection_id and active_connection_id.casefold() != (f"{user_id}:current_app.config['NULL_connection_id']").casefold():
+        if active_connection_id and active_connection_id.casefold() != (f"{user_id}:current_app.config['NULL_CONNECTION_ID']").casefold():
             all_connections = get_user_connections(user_id).get("connections", [])
             match = next((p for p in all_connections if p.get("connection_id") == active_connection_id), {})
             connection_profile = match

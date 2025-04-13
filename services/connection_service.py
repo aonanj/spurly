@@ -131,7 +131,7 @@ def get_active_connection_firestore(user_id):
         if doc.exists:
             return {"active_connection_id": doc.to_dict().get("connection_id")}
         else:
-            active_connection_id = f"{user_id}:{current_app.config['NULL_connection_id']}"
+            active_connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
             set_active_connection_firestore(user_id, active_connection_id)
             return active_connection_id
     except Exception as e:
@@ -143,7 +143,7 @@ def clear_active_connection_firestore(user_id):
     try:
         db.collection("users").document(user_id).collection("settings").document("active_connection").delete()
         
-        active_connection = f"{user_id}:{current_app.config['NULL_connection_id']}"
+        active_connection = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
         set_active_connection_firestore(user_id, active_connection)
         return {"status": "active connection cleared"}
     except Exception as e:
@@ -157,7 +157,7 @@ def get_connection_profile(user_id, connection_id):
         logger.error("Missing user_id in get_connection_profile")
         return {"error": "Missing user_id"}, 400
     if not connection_id:
-        connection_id = f"{user_id}:{current_app.config['NULL_connection_id']}"
+        connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
         return None
     try:
         doc = db.collection("users").document(user_id).collection("connections").document(connection_id).get()
@@ -175,7 +175,7 @@ def get_connection_profile(user_id, connection_id):
         return {"error": str(e)}, 500
 
 def update_connection_profile(user_id, connection_id, data):
-    generic_connection_id = f"{user_id}:{current_app.config['NULL_connection_id']}"
+    generic_connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
     if not user_id or connection_id.casefold() != generic_connection_id.casefold():
         logger = setup_logger(name="connection_profile_log.file", toFile=True, filename="connection_profile.log")
         logger.error("Missing user_id or connection_id in update_connection_profile")
@@ -187,8 +187,8 @@ def update_connection_profile(user_id, connection_id, data):
         return {"error": str(e)}, 500
 
 def delete_connection_profile(user_id, connection_id):
-    generic_connection_id = f"{user_id}:{current_app.config['NULL_connection_id']}"
-    if not user_id or connection_id.casefold() != generic_connection_id.casefold():
+    generic_connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
+    if not user_id or connection_id.casefold() == generic_connection_id.casefold():
         logger = setup_logger(name="connection_profile_log.file", toFile=True, filename="connection_profile.log")
         logger.error("Missing user_id or connection_id in delete_connection_profile")
         return {"error": "Missing user_id or connection_id"}, 400

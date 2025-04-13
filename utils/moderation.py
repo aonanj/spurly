@@ -1,7 +1,7 @@
 import re
 import openai
 from services.clients import mod_client
-from logger import setup_logger
+from .logger import setup_logger
 
 # Static hard-block list (expandable)
 BANNED_PHRASES = [

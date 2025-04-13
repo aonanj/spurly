@@ -1,8 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from utils.auth import require_auth, generate_uid, create_jwt
 from services.clients import db
 from utils.logger import setup_logger
-from firebase_admin import firestore, auth
+from firebase_admin import auth
 from services.user_service import update_user_profile, save_user_profile, get_user_profile
 
 user_management_bp = Blueprint("user_management", __name__)
@@ -12,7 +12,7 @@ user_management_bp = Blueprint("user_management", __name__)
 def update_user_bp():
     try:
         data = request.get_json()
-        uid = request.uid
+        uid = g.user['uid']
 
         age = data.get("age")
         if age and (not isinstance(age, int) or not (18 <= age <= 99)):
@@ -30,7 +30,7 @@ def update_user_bp():
 @require_auth
 def get_user_bp():
     try:
-        uid = request.uid
+        uid = g.user['uid']
         user_ref = db.collection("users").document(uid)
         doc = user_ref.get()
 
@@ -54,7 +54,7 @@ def get_user_bp():
 @require_auth
 def delete_user_bp():
     try:
-        uid = request.uid
+        uid = g.user['uid']
         user_ref = db.collection("users").document(uid)
 
         def delete_subcollections(parent_ref, subcollection_names):

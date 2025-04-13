@@ -15,7 +15,7 @@ class Config:
 
     SPUR_VARIANTS = (
         "main_spur",
-        "warm_spur"
+        "warm_spur",
         "cool_spur",
         "playful_spur"
     )
@@ -29,4 +29,4 @@ class Config:
 
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week
 
-    NULL_connection_id = "generic_connection_id"
+    NULL_CONNECTION_ID = "generic_connection_id"

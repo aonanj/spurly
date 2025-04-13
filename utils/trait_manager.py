@@ -2,7 +2,7 @@ import openai
 import json
 from validation import classify_confidence
 from services.clients import chat_client
-from utils.logger import setup_logger
+from .logger import setup_logger
 
 def infer_situation(conversation):
     """

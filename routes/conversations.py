@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from datetime import datetime
 from utils.auth import require_auth
 from utils.logger import setup_logger
@@ -18,7 +18,7 @@ conversations_bp = Blueprint("conversations", __name__)
 @conversations_bp.route("/conversations", methods=["GET"])
 @require_auth
 def get_conversations_bp():
-    user_id = request.args.get("user_id")
+    user_id = g.user['uid']
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
         logger.error("Missing user_id in /conversations route: fetch_conversations")
@@ -46,7 +46,7 @@ def get_conversations_bp():
 @require_auth
 def save_conversation_bp():
     data = request.get_json()
-    user_id = data.get("user_id")
+    user_id = g.user['uid']
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
         logger.error("Missing user_id in /conversations route: store_conversation")
@@ -57,7 +57,7 @@ def save_conversation_bp():
 @conversations_bp.route("/conversations/<conversation_id>", methods=["GET"])
 @require_auth
 def get_conversation_bp(conversation_id):
-    user_id = request.args.get("user_id")
+    user_id = g.user['uid']
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
         logger.error("Missing user_id in /conversations route: fetch_conversation")
@@ -115,7 +115,7 @@ def fetch_saved_messages_bp():
 @require_auth
 def save_message_bp():
     data = request.get_json()
-    user_id = data.get("user_id")
+    user_id = g.user['uid']
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
         logger.error("Missing user_id in /conversations route: store_saved_message")
@@ -128,7 +128,7 @@ def save_message_bp():
 @conversations_bp.route("/saved-messages/<message_id>", methods=["DELETE"])
 @require_auth
 def delete_saved_message_bp(message_id):
-    user_id = request.args.get("user_id")
+    user_id = g.user['uid']
     if not user_id:
         logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
         logger.error("Missing user_id in /conversations route: remove_saved_message")

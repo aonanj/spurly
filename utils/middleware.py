@@ -1,8 +1,8 @@
 from functools import wraps
 from flask import request, jsonify
 import utils.trait_manager as trait_manager
-from moderation import moderate_topic
-from utils.logger import setup_logger
+from .moderation import moderate_topic
+from .logger import setup_logger
 
 def sanitize_topic(f):
     @wraps(f)

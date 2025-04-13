@@ -39,11 +39,11 @@ COMMON_PHRASES = [
 
 def spurs_to_regenerate(variants: dict[str, str]) -> dict[str, str]:
     
-    spurs_to_regenerate = {}
-
+    spurs_to_regenerate = []
+    
     for key, message in variants.items():
         if any(phrase in message.lower() for phrase in COMMON_PHRASES):
-            spurs_to_regenerate[key] = message
+            spurs_to_regenerate.append[variants.get(key)]
     
     return spurs_to_regenerate
 

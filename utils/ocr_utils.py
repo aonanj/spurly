@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import re
-from logger import setup_logger
+from .logger import setup_logger
 
 def get_text_from_element(element):
     """Extracts text from a Vision API element (Block, Paragraph, Word)."""

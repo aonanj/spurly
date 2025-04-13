@@ -29,7 +29,7 @@ def decode_jwt(token: str) -> dict:
         logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
         logger.error("Expired Token: %s", e)
         return {"error": "Token has expired"}
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
         logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
         logger.error("Invalid token: %s", e)
         return {"error": "Invalid token"}
@@ -37,6 +37,7 @@ def decode_jwt(token: str) -> dict:
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        token = None
         if "Authorization" in request.headers:
             auth_header = request.headers["Authorization"]
             parts = auth_header.split()
@@ -56,11 +57,11 @@ def require_auth(f):
         try:
             payload = jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])
             g.user = payload
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as e:
             logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
             logger.error("Expired Token: %s", e)
             return jsonify({"error": "Token has expired"}), 401
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
             logger = setup_logger(name="auth_log.file", toFile=True, filename="auth.log")
             logger.error("Invalid Token: %s", e)
             return jsonify({"error": "Invalid token"}), 401

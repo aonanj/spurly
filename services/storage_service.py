@@ -2,7 +2,7 @@ from google.cloud import firestore
 from datetime import datetime 
 import uuid
 from gpt_training.anonymizer import anonymize_conversation
-from clients import db
+from .clients import db
 from utils.logger import setup_logger
 
 
@@ -32,22 +32,24 @@ def get_saved_messages(user_id, filters=None):
         return {"error": "Missing user_id"}, 400
     try:
         ref = db.collection("users").document(user_id).collection("messages")
+        query = ref
 
         if filters:
             if "variant" in filters:
-                ref = ref.where("variant", "==", filters["variant"])
+                query = query.where("variant", "==", filters["variant"])
             if "situation" in filters:
-                ref = ref.where("situation", "==", filters["situation"])
+                query = query.where("situation", "==", filters["situation"])
             if "date_from" in filters:
-                ref = ref.where("date_saved", ">=", filters["date_from"])
+                query = query.where("date_saved", ">=", filters["date_from"])
             if "date_to" in filters:
-                ref = ref.where("date_saved", "<=", filters["date_to"])
+                query = query.where("date_saved", "<=", filters["date_to"])
             sort_order = filters.get("sort", "desc")
-            ref = ref.order_by("date_saved", direction=firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING)
+            direct = firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING
+            query = query.order_by("date_saved", direction=direct)
 
         keyword = filters.get("keyword", "").lower() if filters else ""
 
-        docs = ref.stream()
+        docs = query.stream()
         result = []
         for doc in docs:
             data = doc.to_dict()

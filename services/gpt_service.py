@@ -1,6 +1,6 @@
 import openai
 from utils.gpt_output import parse_gpt_output
-from utils.prompt_template import build_prompt, build_regeneration_prompt
+from utils.prompt_template import build_prompt
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
 from utils.trait_manager import infer_tone, infer_situation
 from .clients import chat_client
