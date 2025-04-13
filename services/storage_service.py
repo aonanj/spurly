@@ -3,13 +3,16 @@ from datetime import datetime
 import uuid
 from gpt_training.anonymizer import anonymize_conversation
 from infrastructure.clients import db
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
 
+logger = get_logger(__name__)
 
 def save_message(user_id, message):
     try:
         if not user_id:
-            return {"error": "Missing user_id"}, 400
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
+            return f"error - {err_point} - Error:", 400
 
         doc_ref = db.collection("users").document(user_id).collection("messages").document()
         doc_ref.set({
@@ -21,15 +24,15 @@ def save_message(user_id, message):
 
         return {"status": "message saved", "message_id": doc_ref.id}
     except Exception as e:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.save_message: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error: {err_point} - Error: {str(e)}", 500
 
 def get_saved_messages(user_id, filters=None):
     if not user_id:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Missing user_id in services.storage_service.get_saved_messages: %s", e)
-        return {"error": "Missing user_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 400
     try:
         ref = db.collection("users").document(user_id).collection("messages")
         query = ref
@@ -66,22 +69,22 @@ def get_saved_messages(user_id, filters=None):
 
         return result
     except Exception as e:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.get_saved_messages: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500
 
 
 def save_conversation(user_id, data):
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: save_conversation")
-        return {"error": "Missing user_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 400
 
     connection_id = data.get("connection_id")
     if not connection_id or not connection_id.startswith(f"{user_id}:"):
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing connection_id in /conversations route: save_conversation")
-        return {"error": "Invalid or missing connection_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 400
 
     try:
         conversation_id = str(uuid.uuid4())
@@ -108,9 +111,9 @@ def save_conversation(user_id, data):
         doc_ref.set(doc_data)
         return {"status": "conversation saved", "conversation_id": conversation_id}
     except Exception as e:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.save_conversation: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500
 
 def get_conversation(user_id, conversation_id):
     if not user_id or not conversation_id:
@@ -121,33 +124,33 @@ def get_conversation(user_id, conversation_id):
     if doc.exists:
         return doc.to_dict()
     else:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.get_conversation")
-        return {"error": "Conversation not found"}, 404
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 404
 
 def delete_conversation(user_id, conversation_id):
     if not user_id or not conversation_id:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.delete_conversation: Missing ID")
-        return {"error": "Missing user_id or conversation_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 400
 
     db.collection("users").document(user_id).collection("conversations").document(conversation_id).delete()
     return {"status": "conversation deleted"}
 
 def delete_saved_message(user_id, message_id):
     if not user_id or not message_id:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.delete_saved_message: Missing ID")
-        return {"error": "Missing user_id or message_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 400
 
     try:
         doc_ref = db.collection("users").document(user_id).collection("messages").document(message_id)
         doc_ref.delete()
         return {"status": "message deleted"}
     except Exception as e:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.delete_conversation: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500
 
 def get_conversations(user_id, filters=None):
     """
@@ -159,7 +162,9 @@ def get_conversations(user_id, filters=None):
     
     """
     if not user_id:
-        return {"error": "Missing user_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - [{err_point}] - Error:", 400
 
     try:
         ref = db.collection("users").document(user_id).collection("conversations")
@@ -196,6 +201,6 @@ def get_conversations(user_id, filters=None):
 
         return grouped
     except Exception as e:
-        logger = setup_logger(name="storage_service_log.file", toFile=True, filename="storage_service.log")
-        logger.error("Error in services.storage_service.get_conversations: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500

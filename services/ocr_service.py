@@ -4,9 +4,10 @@ import numpy as np
 from flask import jsonify
 from utils.ocr_utils import extract_chat_messages, crop_top_bottom_cv
 from infrastructure.clients import vision_client
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
 
 client = vision_client
+logger = get_logger(__name__)
 
 """""
     Accepts a file_name as an arg, file should be a screen shot of a messaging conversation. 
@@ -31,15 +32,17 @@ def process_image(image_file):
         image_array = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
         if image_array is None:
-            setup_logger(name="ocr_log.file", toFile=True, fileName="ocr.log").error("services.ocr_service.process_image: Could not process image")
-            return {"error": "Could not read processed image"}
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
+            return jsonify({'error': f"[{err_point}] - Error:"})
 
         cropped_img = crop_top_bottom_cv(image_array)
         
         success, encoded_image = cv2.imencode('.png', cropped_img)
         if not success:
-            setup_logger(name="ocr_log.file", toFile=True, fileName="ocr.log").error("services.ocr_service.process_image: Could not encode cropped image")
-            return {"error": "Could not encode cropped image"}
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
+            return jsonify({'error': f"[{err_point}] - Error:"})
         
         content = encoded_image.tobytes()
         image = vision.Image(content=content)
@@ -47,16 +50,19 @@ def process_image(image_file):
         response = client.document_text_detection(image=image)
 
         if response.error.message:
-            setup_logger(name="ocr_log.file", toFile=True, filename="ocr.log").error(f"OCR error: {response.error.message}")
-            return {"error": response.error.message}
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}: {response.error.message}")
+            return jsonify({'error': f"[{err_point}] - Error - {response.error.messasge}"})
         
         structured_messages = extract_chat_messages(response.full_text_annotation.pages[0])
         
         if structured_messages:
             return {"final_text": structured_messages}
         else:
-            setup_logger(name="ocr_log.file", toFile=True, filename="ocr.log").error("No text detected in the image.")
-            return {"error": "No text detected in the image."}
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
+            return f"error: {err_point} - Error:"
     except Exception as e:
-        setup_logger(name="ocr_log.file", toFile=True, filename="ocr.log").error(f"Error processing image: {e}")
-        return {"error": str(e)}
+                err_point = __package__ or __name__
+                logger.error("[%s] Error: %s", err_point, e)
+                return f"error: [{err_point}] - Error: {str(e)}"

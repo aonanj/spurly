@@ -1,8 +1,9 @@
 import json
 from .filters import apply_phrase_filter, apply_tone_overrides
-from infrastructure.logger import get_logger, setup_logger
+from infrastructure.logger import get_logger
 from flask import current_app
 
+logger = get_logger(__name__)
 
 def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: dict) -> dict:
     """
@@ -29,7 +30,7 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
             for key in sanitized_output
         }
         
-        get_logger().info({
+        logger.info({
             "event": "spurly_generation_log",
             "fallback_flags": fallback_flags,
             "input_profile_summary": {
@@ -43,8 +44,8 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
         return sanitized_output
 
     except (json.JSONDecodeError, TypeError) as e:
-        logger = setup_logger(name="gpt_output_log.file", toFile=True, filename="gpt_output.log")
-        logger.error("utils.gpt_output.parse_gpt_output error: %s", e)
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
         return {
             "main_spur": "",
             "warm_spur": "",

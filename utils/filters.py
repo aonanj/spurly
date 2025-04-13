@@ -1,6 +1,6 @@
 import re
 from typing import Dict
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
 
 # === Phrase Blacklists and Regex ===
 BLACKLISTED_PHRASES = [
@@ -11,6 +11,8 @@ BLACKLISTED_PHRASES = [
     "Literally dying"
     # Expand with others as needed
 ]
+
+logger = get_logger(__name__)
 
 EXPIRED_PHRASES = {
     # Dynamic decay phrases (tagged with expiry epoch if needed)
@@ -52,12 +54,20 @@ def safe_filter(text: str) -> bool:
     False if blacklisted, expired, or fails formatting regex.
     """
     if not text or not isinstance(text, str):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return False
     if contains_blacklisted_phrase(text):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return False
     if contains_expired_phrase(text):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return False
     if fails_regex_safety(text):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return False
     return True
 
@@ -84,9 +94,8 @@ def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
             output[key] = sanitize(message)
         else:
             output[key] = fallback 
-            logger = setup_logger(name="output_parser_log.file", toFile=True, filename="output_parser.log")
-            logger.warning("Filtered unsafe message: %s", message)
-
+            err_point = __package__ or __name__
+            logger.warning(f"Warning: {err_point}")
     return output
 
 from typing import Dict
@@ -117,8 +126,8 @@ def apply_tone_overrides(variants: Dict[str, str], user_profile: dict, connectio
         for key in output:
             if any(kw in output[key].lower() for kw in ["wine", "beer", "drink", "bar", "shots", "drinks"]):
                 output[key] = fallback
-                logger = setup_logger(name="output_parser_log.file", toFile=True, filename="output_parser.log")
-                logger.warning("Filtered alcohol reference for sober connection: %s", output[key])
+            err_point = __package__ or __name__
+            logger.warning(f"Warning: {err_point}")
 
 
     return output

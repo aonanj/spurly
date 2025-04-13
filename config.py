@@ -30,3 +30,5 @@ class Config:
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week
 
     NULL_CONNECTION_ID = "generic_connection_id"
+    
+    LOGGER_LEVEL = os.environ.get("LOGGER_LEVEL", "INFO")

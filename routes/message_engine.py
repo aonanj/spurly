@@ -3,9 +3,10 @@ from services.gpt_service import generate_spurs
 from services.connection_service import get_active_connection_firestore, get_user_connections
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
 from infrastructure.auth import require_auth
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
 
 message_bp = Blueprint("message", __name__)
+logger = get_logger(__name__)
 
 @message_bp.route("/generate", methods=["POST"])
 @require_auth
@@ -23,9 +24,9 @@ def generate():
     topic = data.get("topic", None)
 
     if not user_id:
-        logger = setup_logger(name="message_log.file", toFile=True, filename="message.log")
-        logger.error("Missing user_id in /generate route")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     if not active_connection_id:
         active_connection_id = get_active_connection_firestore(user_id).get("active_connection_id")

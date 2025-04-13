@@ -11,7 +11,9 @@ from services.connection_service import (
      delete_connection_profile,
 )
 from infrastructure.auth import require_auth
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 connection_bp = Blueprint("connection", __name__)
 
@@ -40,9 +42,9 @@ def set_active_connection():
         connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
 
     if not user_id or not connection_id:
-        logger = setup_logger(name="profiles_log.file", toFile=True, filename="profiles.log")
-        logger.error("Error in routes.profiles.set_active_connection: missing ID")
-        return jsonify({"error": "Missing user_id or connection_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
     result = set_active_connection_firestore(user_id, connection_id)
     return jsonify(result)
 
@@ -51,7 +53,9 @@ def set_active_connection():
 def get_active_connection():
     user_id = g.user['uid']
     if not user_id:
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
     result = get_active_connection_firestore(user_id)
     return jsonify(result)
 
@@ -60,9 +64,9 @@ def get_active_connection():
 def clear_active_connection():
     user_id = g.user['uid']
     if not user_id:
-        logger = setup_logger(name="profiles_log.file", toFile=True, filename="profiles.log")
-        logger.error("Error in routes.profiles.clear_active_connection: missing ID")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 500
     result = clear_active_connection_firestore(user_id)
     return jsonify(result)
 
@@ -88,9 +92,9 @@ def update_connection():
     user_id = g.user['uid']
     connection_id = data.get("connection_id")
     if not user_id or not connection_id:
-        logger = setup_logger(name="profiles_log.file", toFile=True, filename="profiles.log")
-        logger.error("Error in routes.profiles.update_connection: missing ID")
-        return jsonify({"error": "Missing user_id or connection_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
     update_data = {k: v for k, v in data.items() if k not in {"user_id", "connection_id"}}
     result = update_connection_profile(user_id, connection_id, update_data)
     return jsonify(result)
@@ -102,8 +106,8 @@ def delete_connection():
     user_id = g.user['uid']
     connection_id = data.get("connection_id")
     if not user_id or not connection_id:
-        logger = setup_logger(name="profiles_log.file", toFile=True, filename="profiles.log")
-        logger.error("Error in routes.profiles.delete_connection: missing ID")
-        return jsonify({"error": "Missing user_id or connection_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
     result = delete_connection_profile(user_id, connection_id)
     return jsonify(result)

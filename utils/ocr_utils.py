@@ -1,7 +1,9 @@
 import cv2
 import numpy as np
 import re
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 def get_text_from_element(element):
     """Extracts text from a Vision API element (Block, Paragraph, Word)."""
@@ -17,8 +19,8 @@ def get_text_from_element(element):
             block_text = element.text
         return block_text.strip()
     except Exception as e:
-        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
-        logger.error("tils.ocr_utils.get_text_from_element error: %s", e)
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
         raise e
 
 def crop_top_bottom_cv(img):
@@ -43,8 +45,8 @@ def crop_top_bottom_cv(img):
     height, width = img.shape[:2]
 
     if height == 0 or width == 0:
-        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
-        logger.error("tils.ocr_utils.crop_top_bottom_cv error")
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return None
 
     # Calculate the number of pixels to remove from the top (10%)
@@ -61,8 +63,8 @@ def crop_top_bottom_cv(img):
     end_row = height - bottom_crop_pixels
 
     if start_row >= end_row:
-        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
-        logger.error("tils.ocr_utils.crop_top_bottom_cv error")
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return None # Cannot perform a valid crop
 
     # Perform Cropping using NumPy slicing
@@ -199,5 +201,6 @@ def extract_chat_messages(page, confidence_threshold=0.80):
 
         return structured_messages
     except Exception as e:
-        logger = setup_logger(name="ocr_utils_log.file", toFile=True, filename="ocr_utils.log")
-        logger.error("tils.ocr_utils.extract_chat_messages error: %s", e)  
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        raise e

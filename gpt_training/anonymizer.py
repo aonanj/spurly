@@ -1,8 +1,10 @@
 from datetime import datetime
 import uuid
 from infrastructure.clients import db
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+from flask import current_app
 
+logger = get_logger(__name__)
 
 def anonymize_conversation(convo, user_profile=None, connection_profile=None, situation="", topic=""):
     """
@@ -34,12 +36,12 @@ def anonymize_conversation(convo, user_profile=None, connection_profile=None, si
         if not isinstance(user_profile.get("gender"), str):
             user_label = "Person A"
         else:
-            user_label = f"{user_profile.get("gender").capitalize()} Speaker"
+            user_label = f"{user_profile.get('gender').capitalize()} Speaker"
 
         if not isinstance(connection_profile.get("gender"), str):
             connection_label = "Person B"
         else:
-            connection_label = f"{connection_profile.get("gender").capitalize()} Speaker"
+            connection_label = f"{connection_profile.get('gender').capitalize()} Speaker"
 
         anonymized_messages = []
         for message in convo:
@@ -59,9 +61,9 @@ def anonymize_conversation(convo, user_profile=None, connection_profile=None, si
             })
         save_conversation(anonymized_messages, situation, topic)
     except Exception as e:
-        logger = setup_logger(name="anonymizer_log.file", toFile=True, filename="anonymizer.log")
-        logger.error("Error anonymizing conversation: %s", e)
-        raise Exception(f"Error anonymizing conversation: {str(e)}")
+        err_point = __package__ or __name__
+        logger.error("[%s] Error anonymizing conversation: %s", err_point, e)
+        raise Exception(f"[{err_point}] - Error anonymizing conversation: {str(e)}")
 
     return True
 
@@ -80,6 +82,6 @@ def save_conversation(convo, situation="", topic=""):
         })
         return True
     except Exception as e:
-        logger = setup_logger(name="anonymizer_log.file", toFile=True, filename="anonymizer.log")
-        logger.error("Error anonymizing conversation: %s", e)
-        raise Exception(f"Error anonymizing conversation: {str(e)}")
+        err_point = __package__ or __name__
+        logger.error("[%s] Error anonymizing conversation: %s", err_point, e)
+        raise Exception(f"[{err_point}] - Error anonymizing conversation: {str(e)}")

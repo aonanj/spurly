@@ -2,7 +2,9 @@ from functools import wraps
 from flask import request, jsonify
 import utils.trait_manager as trait_manager
 from .moderation import moderate_topic
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 def sanitize_topic(f):
     @wraps(f)
@@ -38,11 +40,12 @@ def validate_profile(f):
         try:
             age = int(user_profile.get("age", 0))
             if age < 18:
-                logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
-                logger.error("utils.middleware.validate_profile error: age verification failure")
+                err_point = __package__ or __name__
+                logger.error(f"Error: {err_point}")
                 raise ValueError
         except (ValueError, TypeError):
-
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
             return jsonify({"error": "User age must be at least 18"}), 400
 
         if "age" in connection_profile:
@@ -51,8 +54,8 @@ def validate_profile(f):
                 if connection_age < 18:
                     raise ValueError
             except (ValueError, TypeError):
-                logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
-                logger.error("utils.middleware.validate_profile error: age verification failure")
+                err_point = __package__ or __name__
+                logger.error(f"Error: {err_point}")
                 return jsonify({"error": "connection age must be at least 18 if provided"}), 400
 
         return f(*args, **kwargs)
@@ -68,8 +71,8 @@ def enrich_context(f):
             try:
                 inferred = trait_manager.infer_situation(conversation)
             except Exception as e:
-                logger = setup_logger(name="middleware_log.file", toFile=True, filename="middleware.log")
-                logger.error("tils.middleware.enrich_context error: %s", e)
+                err_point = __package__ or __name__
+                logger.error("[%s] Error: %s", err_point, e)
                 inferred = {"situation": "cold_open", "confidence": "low"}
             data["situation"] = inferred.get("situation", "cold_open")
             data["situation_confidence"] = inferred.get("confidence", "low")

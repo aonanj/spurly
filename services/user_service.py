@@ -1,7 +1,9 @@
 from infrastructure.clients import db
 import uuid
 from flask import current_app, jsonify
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 def format_user_profile(user_id, profile_data):
     lines = [f"user_id: {user_id}"]
@@ -24,9 +26,9 @@ def format_user_profile(user_id, profile_data):
 def save_user_profile(data):
     user_id = data.get("user_id")
     if not user_id:
-        logger = setup_logger(name="user_profile_log.file", toFile=True, filename="user_profile.log")
-        logger.error("Missing user_id in save_user_profile")
-        return {"error": "Missing user_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 400
 
     try:
         profile_data = {k: v for k, v in data.items() if k != "user_id"}
@@ -34,13 +36,15 @@ def save_user_profile(data):
         db.collection("users").document(user_id).collection("profile").document("profile").set(profile_data)
         return {"status": "user profile saved"}
     except Exception as e:
-        logger = setup_logger(name="user_profile_log.file", toFile=True, filename="user_profile.log")
-        logger.error("Error saving user profile: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500
 
 def get_user_profile(user_id):
     if not user_id:
-        return {"error": "Missing user_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return f"error - {err_point} - Error:", 404
 
     try:
         doc_ref = db.collection("users").document(user_id).collection("profile").document("profile")
@@ -48,11 +52,13 @@ def get_user_profile(user_id):
         if doc.exists:
             return doc.to_dict()
         else:
-            return {"error": "Profile not found"}, 404
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
+            return f"error - {err_point} - Error:", 404
     except Exception as e:
-        logger = setup_logger(name="user_profile_log.file", toFile=True, filename="user_profile.log")
-        logger.error("Error getting user profile: %s", e)
-        return {"error": str(e)}, 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500
 
 def update_user_profile(user_id, profile_data):
     try:
@@ -108,6 +114,6 @@ def update_user_profile(user_id, profile_data):
             "user_profile": user_profile
         })
     except Exception as e:
-        logger = setup_logger(name="user_service_log.file", toFile=True, filename="user_service.log")
-        logger.error("User service error: %s", e)
-        return jsonify({"error": str(e)}), 500
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error - {err_point} - Error: {str(e)}", 500

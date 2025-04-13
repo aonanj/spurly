@@ -1,7 +1,9 @@
 import openai
 import json
 from infrastructure.clients import chat_client
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 def infer_situation(conversation):
     """
@@ -41,8 +43,8 @@ Conversation:
         output = response.choices[0].message.content.strip()
         return json.loads(output)
     except Exception as e:
-        logger = setup_logger(name="trait_manager_log.file", toFile=True, filename="trait_manager.log")
-        logger.error("Situation inference error: %s", e)
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
         return {"situation": "cold_open", "confidence": 0.0}
 
 
@@ -71,6 +73,6 @@ Message:
         output = response.choices[0].message.content.strip()
         return json.loads(output)
     except Exception as e:
-        logger = setup_logger(name="trait_manager_log.file", toFile=True, filename="trait_manager.log")
-        logger.error("Tone inference error: %s", e)
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
         return {"tone": "neutral", "confidence": 0.0}

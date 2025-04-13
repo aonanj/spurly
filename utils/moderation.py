@@ -1,7 +1,9 @@
 import re
 import openai
 from infrastructure.clients import mod_client
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Static hard-block list (expandable)
 BANNED_PHRASES = [
@@ -18,6 +20,8 @@ def moderate_topic(text: str) -> dict:
     Returns a dict with `safe: bool` and optionally `reason: str`.
     """
     if not text or not isinstance(text, str):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return {"safe": False, "reason": "invalid_or_blank"}
 
     normalized = text.strip().lower()
@@ -25,10 +29,14 @@ def moderate_topic(text: str) -> dict:
     # Check static banned list
     for phrase in BANNED_PHRASES:
         if phrase in normalized:
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
             return {"safe": False, "reason": "banned_phrase"}
 
     # Check gibberish / emoji spam
     if GIBBERISH_PATTERN.search(text) or TOO_MUCH_EMOJI.search(text):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
         return {"safe": False, "reason": "gibberish_or_emoji"}
 
     # ✅ (Optional): Plug in ML moderation here later
@@ -43,5 +51,6 @@ def moderate_with_openai(text):
         flagged = response["results"][0]["flagged"]
         return {"safe": True} if not flagged else {"safe": False, "reason": "openai_moderation"}  
     except Exception as e:
-        logger = setup_logger(name="moderation_log.file", toFile=True, filename="moderation.log")
-        logger.error("tils.moderation.moderate_with_openai error: %s", e)
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        raise e

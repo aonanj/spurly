@@ -1,6 +1,8 @@
 import json
 from flask import current_app
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 def build_prompt(selected_spurs: list[str], context_block: str) -> str:
     try:
@@ -11,6 +13,8 @@ def build_prompt(selected_spurs: list[str], context_block: str) -> str:
 
         valid_spurs = [v for v in selected_spurs if v in current_app.config['SPUR_VARIANT_DESCRIPTIONS']]
         if not valid_spurs:
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
             raise ValueError("No valid SPUR variants selected.")
         
         spur_instructions = "\n".join(
@@ -35,6 +39,6 @@ def build_prompt(selected_spurs: list[str], context_block: str) -> str:
             {context_block}
             """
     except Exception as e:
-        logger = setup_logger(name="prompt_template_log.file", toFile=True, filename="prompt_template.log")
-        logger.error("tils.prompt_template.build_prompt error: %s", e)  
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
         raise e

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime
 from infrastructure.auth import require_auth
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
 
 from services.storage_service import (
     get_conversations,
@@ -13,6 +13,8 @@ from services.storage_service import (
     delete_saved_message,
 )
 
+logger = get_logger(__name__)
+
 conversations_bp = Blueprint("conversations", __name__)
 
 @conversations_bp.route("/conversations", methods=["GET"])
@@ -20,9 +22,9 @@ conversations_bp = Blueprint("conversations", __name__)
 def get_conversations_bp():
     user_id = g.user['uid']
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: fetch_conversations")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     filters = {}
 
@@ -34,10 +36,10 @@ def get_conversations_bp():
         if date_str:
             try:
                 filters[date_field] = datetime.fromisoformat(date_str)
-            except ValueError:
-                logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-                logger.error(f"Invalid date format for {date_field}. Use ISO format.")
-                return jsonify({"error": f"Invalid date format for {date_field}. Use ISO format."}), 400
+            except ValueError as e:
+                err_point = __package__ or __name__
+                logger.error("[%s] Error: %s", err_point, e)
+                return jsonify({'error': f"{err_point} - Error: {str(e)}"}), 400
 
     result = get_conversations(user_id, filters)
     return jsonify(result)
@@ -48,9 +50,9 @@ def save_conversation_bp():
     data = request.get_json()
     user_id = g.user['uid']
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: store_conversation")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
     result = save_conversation(user_id, data)
     return jsonify(result)
 
@@ -59,9 +61,9 @@ def save_conversation_bp():
 def get_conversation_bp(conversation_id):
     user_id = g.user['uid']
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: fetch_conversation")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"{err_point} - Error:"}), 400
     result = get_conversation(user_id, conversation_id)
     return jsonify(result)
 
@@ -70,9 +72,9 @@ def get_conversation_bp(conversation_id):
 def delete_conversation_bp(conversation_id):
     user_id = request.args.get("user_id")
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: remove_conversation")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
     result = delete_conversation(user_id, conversation_id)
     return jsonify(result)
 
@@ -81,9 +83,9 @@ def delete_conversation_bp(conversation_id):
 def fetch_saved_messages_bp():
     user_id = request.args.get("user_id")
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: fetch_saved_messages")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     filters = {}
     for field in ["variant", "situation"]:
@@ -96,10 +98,10 @@ def fetch_saved_messages_bp():
         if date_str:
             try:
                 filters[date_field] = datetime.fromisoformat(date_str)
-            except ValueError:
-                logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-                logger.error(f"Invalid date format for {date_field}. Use ISO format.")
-                return jsonify({"error": f"Invalid date format for {date_field}. Use ISO format."}), 400
+            except ValueError as e:
+                err_point = __package__ or __name__
+                logger.error(f"Error: {err_point}")
+                return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     if request.args.get("keyword"):
         filters["keyword"] = request.args.get("keyword")
@@ -117,9 +119,9 @@ def save_message_bp():
     data = request.get_json()
     user_id = g.user['uid']
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: store_saved_message")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     result = save_message(user_id, data)
     return jsonify(result)
@@ -130,9 +132,9 @@ def save_message_bp():
 def delete_saved_message_bp(message_id):
     user_id = g.user['uid']
     if not user_id:
-        logger = setup_logger(name="conversation_log.file", toFile=True, filename="conversation.log")
-        logger.error("Missing user_id in /conversations route: remove_saved_message")
-        return jsonify({"error": "Missing user_id"}), 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     result = delete_saved_message(user_id, message_id)
     return jsonify(result)

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, current_app
 from flask_cors import CORS
 from routes.ocr import ocr_bp
 from routes.message_engine import message_bp
@@ -7,6 +7,8 @@ from routes.feedback import feedback_bp
 from routes.conversations import conversations_bp
 from routes.user_management import user_management_bp
 from routes.onboarding import onboarding_bp
+from infrastructure.logger import setup_logger
+import logging
 
 def create_app():
     app = Flask(__name__)
@@ -19,6 +21,9 @@ def create_app():
     app.register_blueprint(feedback_bp, url_prefix="/message")
     app.register_blueprint(conversations_bp, url_prefix="/conversations")
     app.register_blueprint(user_management_bp, url_prefix="/user")
+    
+    level = app.config.get("LOGGER_LEVEL", "INFO")
+    setup_logger(name="spurly", toFile=True, filename="spurly.log", level=level)
 
     return app
 

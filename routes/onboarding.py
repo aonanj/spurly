@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from infrastructure.auth import generate_uid, create_jwt
 from infrastructure.clients import db
-from infrastructure.logger import setup_logger
+from infrastructure.logger import get_logger
 
 onboarding_bp = Blueprint("onboarding", __name__)
+logger = get_logger(__name__)
 
 @onboarding_bp.route("/onboarding", methods=["POST"])
 def onboarding():
@@ -11,8 +12,9 @@ def onboarding():
         data = request.get_json()
         age = data.get("age")
         if not isinstance(age, int) or not (18 <= age <= 99):
-            setup_logger(name="onboarding_log.file", toFile=True, fileName="onboarding.log").error("routes.onboarding.onboarding: Age verification failure")
-            return jsonify({"error": "You must be over the age of 18"}), 400
+                err_point = __package__ or __name__
+                logger.error("[%s] Error: %s", err_point, e)
+                return jsonify({"error": f"[{err_point}] - Error"}), 401
         
         uid = generate_uid()
         token = create_jwt(uid)
@@ -64,5 +66,6 @@ def onboarding():
             "user_profile": user_profile
         })
     except Exception as e:
-        setup_logger(name="onboarding_log.file", toFile=True, filename="onboarding.log").error(f"Error onboarding: {e}")
-        return {"error": str(e)}
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return f"error: {err_point} - Error"
