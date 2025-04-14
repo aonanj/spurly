@@ -5,14 +5,15 @@ from gpt_training.anonymizer import anonymize_conversation
 from infrastructure.clients import db
 from infrastructure.logger import get_logger
 
+
 logger = get_logger(__name__)
 
 def save_message(user_id, message):
     try:
         if not user_id:
             err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
-            return f"error - {err_point} - Error:", 400
+            logger.error(f"error - {err_point} - No user_id in context")
+            return f"error - {err_point} - No user_id in context"
 
         doc_ref = db.collection("users").document(user_id).collection("messages").document()
         doc_ref.set({
@@ -91,7 +92,7 @@ def save_conversation(user_id, data):
         doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
 
         doc_data = {
-            "connection_id": connection_id,
+            "conversation_id": conversation_id,
             "conversation": data.get("conversation", []),
             "connection_id": data.get("connection_id", None),
             "situation": data.get("situation", ""),

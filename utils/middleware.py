@@ -22,7 +22,7 @@ def sanitize_topic(f):
             filtered = True
 
         context["topic"] = topic
-        context["quick_topic_filtered"] = filtered
+        context["topic_filtered"] = filtered
         request.context = context
 
         return f(*args, **kwargs)

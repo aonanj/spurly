@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
-from infrastructure.auth import generate_uid, create_jwt
-from infrastructure.clients import db
+from infrastructure.auth import generate_user_id, create_jwt
 from infrastructure.logger import get_logger
+from services.user_service import save_user_profile
 
 onboarding_bp = Blueprint("onboarding", __name__)
 logger = get_logger(__name__)
@@ -16,15 +16,15 @@ def onboarding():
                 logger.error("[%s] Error: %s", err_point, e)
                 return jsonify({"error": f"[{err_point}] - Error"}), 401
         
-        uid = generate_uid()
-        token = create_jwt(uid)
+        user_id = generate_user_id()
+        token = create_jwt(user_id)
 
         def format_field(key):
             val = data.get(key)
             return f"{key.capitalize()}: {val}" if val else None
         
         profile_fields = [
-            f"UID: {uid}",
+            f"UID: {user_id}",
             f"Age: {age}",
             format_field("name"),
             format_field("gender"),
@@ -54,15 +54,10 @@ def onboarding():
         user_profile = "\n".join(f for f in profile_fields if f)
 
         # Save structured and formatted data to Firestore
-        user_ref = db.collection("users").document(uid)
-        user_ref.set({
-            "uid": uid,
-            "profile_text": user_profile,
-            "fields": {k: v for k, v in data.items() if v is not None}
-        })
+        save_user_profile(user_id, user_profile)
 
         return jsonify({
-            "uid": uid,
+            "user_id": user_id,
             "user_profile": user_profile
         })
     except Exception as e:

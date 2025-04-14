@@ -8,7 +8,7 @@ from routes.conversations import conversations_bp
 from routes.user_management import user_management_bp
 from routes.onboarding import onboarding_bp
 from infrastructure.logger import setup_logger
-import logging
+from infrastructure.clients import init_clients
 
 def create_app():
     app = Flask(__name__)
@@ -30,3 +30,4 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
+    init_clients(app)

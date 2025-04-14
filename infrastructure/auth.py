@@ -6,13 +6,13 @@ from uuid import uuid4
 
 logger = get_logger(__name__)
 
-def generate_uid() -> str:
+def generate_user_id() -> str:
     return f"u{uuid4().hex[:8]}"
 
-def create_jwt(uid:str) -> str:
+def create_jwt(user_id:str) -> str:
     try:
         payload = {
-            "uid": uid,
+            "user_id": user_id,
             "exp": current_app.config["JWT_EXPIRATION"],
         }
         token = jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
@@ -28,13 +28,14 @@ def decode_jwt(token: str) -> dict:
         payload = jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])
         return payload
     except jwt.ExpiredSignatureError as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return (f"[{err_point}] - Error: {str(e)}")
+        logger.warning("JWT expired") # Log appropriately
+        raise jwt.ExpiredSignatureError
     except jwt.InvalidTokenError as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return (f"[{err_point}] - Error: {str(e)}")
+        logger.warning(f"Invalid JWT: {e}")
+        raise jwt.InvalidTokenError
+    except Exception as e: # Catch other potential issues during decoding
+         logger.error(f"JWT decoding error: {e}", exc_info=True)
+         raise jwt.InvalidTokenError("Token decoding failed") from e
 
 def require_auth(f):
     @wraps(f)

@@ -2,11 +2,22 @@ import cv2
 import numpy as np
 import re
 from infrastructure.logger import get_logger
+from class_defs.conversation_def import Conversation
+from datetime import datetime
+import uuid
+from typing import Any, Union
 
 logger = get_logger(__name__)
 
-def get_text_from_element(element):
-    """Extracts text from a Vision API element (Block, Paragraph, Word)."""
+def get_text_from_element(element) -> str:
+    """Extracts text from a Vision API element (Block, Paragraph, or Word).
+
+    Args:
+        element: A Vision API element (block/paragraph/word object).
+
+    Returns:
+        str: Cleaned string of text from the element.
+    """
     try:
         block_text = ""
         for paragraph in getattr(element, 'paragraphs', []):
@@ -23,15 +34,15 @@ def get_text_from_element(element):
         logger.error("[%s] Error: %s", err_point, e)
         raise e
 
-def crop_top_bottom_cv(img):
+def crop_top_bottom_cv(img: np.ndarray) -> Union[np.ndarray, None]:
     """
     Crops the top and bottom rows off an image.
 
     Args:
-        img: A NumPy array containing the image file content.
+        img (np.ndarray): A NumPy array containing the image content.
 
     Returns:
-        cropped_image: A byte string containing the cropped image file content.
+        Union[np.ndarray, None]: Cropped image or None if crop is invalid.
     """
     # Define the crop percentages
      # 10% from the top and 15% from the bottom
@@ -74,20 +85,18 @@ def crop_top_bottom_cv(img):
 
     return cropped_image
 
-def extract_chat_messages(page, confidence_threshold=0.80):
+def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 0.80) -> Conversation:
     """
-    Detects text blocks, filters metadata/UI elements using refined logic
-    (full match for some, looser content+position for headers), identifies speaker,
-    orders messages, and cleans up punctuation spacing.
-    Version 11 adjusts filtering strategy again.
+    Extracts structured conversation text from a single Vision API page object.
+    Filters out UI elements and metadata, identifies speaker by layout, and returns a Conversation object.
 
     Args:
-        image_bytes: A byte string containing the image file content.
-        confidence_threshold (float): Minimum confidence for a block to be considered.
+        user_id (str): The user's unique identifier.
+        page (Any): Vision API Page object to extract blocks from.
+        confidence_threshold (float): Minimum confidence for a block to be considered readable.
 
     Returns:
-        A tuple containing:
-        - A list of structured messages [{'speaker': 'A/B', 'text': '...'}, ...]
+        Conversation: A structured conversation object containing messages and metadata.
     """
     image_width = page.width
     image_height = page.height
@@ -199,7 +208,16 @@ def extract_chat_messages(page, confidence_threshold=0.80):
             for msg in block_data_for_sorting
         ]
 
-        return structured_messages
+        return Conversation(
+            user_id="",  # to be filled in by caller or post-processing
+            conversation_id=str(uuid.uuid4()),
+            conversation=structured_messages,
+            connection_id="",  # to be filled in by caller or post-processing
+            situation="",  # to be filled in by caller or post-processing
+            topic="",  # to be filled in by caller or post-processing
+            spurs={},  # to be filled in by caller or post-processing
+            created_at=datetime.utcnow()
+        )
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)

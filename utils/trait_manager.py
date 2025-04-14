@@ -2,6 +2,7 @@ import openai
 import json
 from infrastructure.clients import chat_client
 from infrastructure.logger import get_logger
+from flask import current_app
 
 logger = get_logger(__name__)
 
@@ -36,9 +37,8 @@ Conversation:
 
     try:
         response = chat_client.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
+            model=current_app.config['AI_MODEL'],
+            messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
         )
         output = response.choices[0].message.content.strip()
         return json.loads(output)
@@ -66,9 +66,8 @@ Message:
 
     try:
         response = chat_client.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
+            model=current_app.config['AI_MODEL'],
+            messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
         )
         output = response.choices[0].message.content.strip()
         return json.loads(output)

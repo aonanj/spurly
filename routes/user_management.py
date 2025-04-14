@@ -1,9 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from infrastructure.auth import require_auth
-from infrastructure.clients import db
 from infrastructure.logger import get_logger
-from firebase_admin import auth
-from services.user_service import update_user_profile
+from services.user_service import update_user_profile, get_user_profile, delete_user_profile
 
 user_management_bp = Blueprint("user_management", __name__)
 logger = get_logger(__name__)
@@ -13,7 +11,7 @@ logger = get_logger(__name__)
 def update_user_bp():
     try:
         data = request.get_json()
-        uid = g.user['uid']
+        user_id = g.user['user_id']
 
         age = data.get("age")
         if age and (not isinstance(age, int) or not (18 <= age <= 99)):
@@ -21,7 +19,7 @@ def update_user_bp():
             logger.error(f"Error: {err_point}")
             return jsonify({"error": f"[{err_point}] - Error"}), 400
 
-        json_user_profile = update_user_profile(uid, data)
+        json_user_profile = update_user_profile(user_id, data)
 
         return json_user_profile
     except Exception as e:
@@ -33,21 +31,9 @@ def update_user_bp():
 @require_auth
 def get_user_bp():
     try:
-        uid = g.user['uid']
-        user_ref = db.collection("users").document(uid)
-        doc = user_ref.get()
+        user_id = g.user['user_id']
 
-        if not doc.exists:
-            err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
-            return jsonify({"error": f"[{err_point}] - Error"}), 404
-
-        data = doc.to_dict()
-        return jsonify({
-            "uid": uid,
-            "profile_text": data.get("profile_text", ""),
-            "fields": data.get("fields", {})
-        })
+        return get_user_profile(user_id)
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
@@ -57,23 +43,11 @@ def get_user_bp():
 @require_auth
 def delete_user_bp():
     try:
-        uid = g.user['uid']
-        user_ref = db.collection("users").document(uid)
-
-        def delete_subcollections(parent_ref, subcollection_names):
-            for name in subcollection_names:
-                sub_ref = parent_ref.collection(name)
-                docs = sub_ref.stream()
-                for doc in docs:
-                    doc.reference.delete()
-
-        delete_subcollections(user_ref, ["connections", "messages", "conversations"])
-
-        user_ref.delete()
-
-        auth.delete_user(uid)
-
-        return jsonify({"message": "User profile deleted successfully."}), 200
+        user_id = g.user['user_id']
+        if delete_user_profile(user_id):
+            return jsonify({"message": "User profile deleted successfully."}), 200
+        else:
+            return jsonify({"message": "ERROR - user profile not deleted."}), 200
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)

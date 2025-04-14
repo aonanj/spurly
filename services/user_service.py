@@ -1,25 +1,29 @@
 from infrastructure.clients import db
-import uuid
-from flask import current_app, jsonify
+from flask import jsonify
+from firebase_admin import auth
 from infrastructure.logger import get_logger
+from class_defs.profile_def import Profile
+from dataclasses import fields
 
 logger = get_logger(__name__)
 
-def format_user_profile(user_id, profile_data):
-    lines = [f"user_id: {user_id}"]
-    for key in [
-        "name", "age", "gender", "pronouns", "school", "job", "drinking", "ethnicity", "hometown"
-    ]:
-        value = profile_data.get(key)
-        if value:
-            lines.append(f"{key.capitalize()}: {value}")
+def format_user_profile(profile: Profile) -> str:
+    lines = [f"user_id: {profile.user_id}"]
 
-    green = profile_data.get("greenlight_topics", [])
-    red = profile_data.get("redlight_topics", [])
-    if green:
-        lines.append(f"Greenlight Topics: {', '.join(green)}")
-    if red:
-        lines.append(f"Redlight Topics: {', '.join(red)}")
+    for field in fields(Profile):
+        key = field.name
+        value = getattr(profile, key)
+
+        if key == "user_id" or value is None:
+            continue
+
+        if isinstance(value, list):
+            if value:
+                label = "Greenlight Topics" if key == "greenlights" else (
+                        "Redlight Topics" if key == "redlights" else key.capitalize())
+                lines.append(f"{label}: {', '.join(value)}")
+        else:
+            lines.append(f"{key.capitalize()}: {value}")
 
     return "\n".join(lines)
 
@@ -31,9 +35,14 @@ def save_user_profile(data):
         return f"error - {err_point} - Error:", 400
 
     try:
-        profile_data = {k: v for k, v in data.items() if k != "user_id"}
-        format_user_profile(user_id, profile_data)
-        db.collection("users").document(user_id).collection("profile").document("profile").set(profile_data)
+        profile = Profile.from_dict(data)
+        profile_doc = format_user_profile(profile)
+        user_ref = db.collection("users").document(user_id)
+        user_ref.set({
+            "user_id": user_id,
+            "profile_entries": profile_doc,
+            "fields": profile.to_dict()
+        })
         return {"status": "user profile saved"}
     except Exception as e:
         err_point = __package__ or __name__
@@ -47,73 +56,73 @@ def get_user_profile(user_id):
         return f"error - {err_point} - Error:", 404
 
     try:
-        doc_ref = db.collection("users").document(user_id).collection("profile").document("profile")
-        doc = doc_ref.get()
-        if doc.exists:
-            return doc.to_dict()
-        else:
+        user_ref = db.collection("users").document(user_id)
+        doc = user_ref.get()
+
+        if not doc.exists:
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")
-            return f"error - {err_point} - Error:", 404
+            return jsonify({"error": f"[{err_point}] - User not found"}), 404
+
+        data = doc.to_dict()
+        profile = Profile.from_dict(data.get("fields", {}))
+        return jsonify({
+            "user_id": user_id,
+            "profile_entries": data.get("profile_entries", ""),
+            "fields": profile.to_dict()
+        })
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
+        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
 def update_user_profile(user_id, profile_data):
     try:
         data = profile_data
-        uid = user_id
-
-        def format_field(key):
-            val = data.get(key)
-            return f"{key.capitalize()}: {val}" if val else None
-
-        # Build profile fields
-        profile_fields = [
-            f"UID: {uid}",
-            format_field("age"),
-            format_field("name"),
-            format_field("gender"),
-            format_field("pronouns"),
-            format_field("school"),
-            format_field("job"),
-            format_field("drinking"),
-            format_field("ethnicity"),
-            format_field("hometown"),
-        #    format_field("tone"),
-        #    format_field("humor_style"),
-        #    format_field("writing_style"),
-        #    format_field("emoji_use"),
-        #    format_field("flirt_level"),
-        #    format_field("openness"),
-        #    format_field("banter"),
-        ]
-
-        green = data.get("greenlight_topics", [])
-        red = data.get("redlight_topics", [])
-
-        if green:
-            profile_fields.append(f"Greenlight Topics: {', '.join(green)}")
-        if red:
-            profile_fields.append(f"Redlight Topics: {', '.join(red)}")
-
-        user_profile = "\n".join(f for f in profile_fields if f)
-
-        # Save structured and formatted data to Firestore
-        
-        user_ref = db.collection("users").document(uid)
+        profile = Profile.from_dict({"user_id": user_id, **data})
+        user_ref = db.collection("users").document(user_id)
         user_ref.set({
-            "uid": uid,
-            "profile_text": user_profile,
-            "fields": {k: v for k, v in data.items() if v is not None}
+            "user_id": user_id,
+            "profile_entries": format_user_profile(profile),
+            "fields": profile.to_dict()
         })
-        
         return jsonify({
-            "uid": uid,
-            "user_profile": user_profile
+            "user_id": user_id,
+            "user_profile": profile.to_dict()
         })
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
         return f"error - {err_point} - Error: {str(e)}", 500
+
+def delete_user_profile(user_id):
+    if not user_id:
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return False
+    try:
+        user_ref = db.collection("users").document(user_id)
+
+        # Optional: Load and log profile before deletion
+        doc = user_ref.get()
+        if doc.exists:
+            profile_data = doc.to_dict().get("fields", {})
+            profile = Profile.from_dict(profile_data)
+            logger.info(f"Deleting user profile: {profile.to_dict()}")
+
+        def delete_subcollections(parent_ref, subcollection_names):
+            for name in subcollection_names:
+                sub_ref = parent_ref.collection(name)
+                docs = sub_ref.stream()
+                for doc in docs:
+                    doc.reference.delete()
+
+        delete_subcollections(user_ref, ["connections", "messages", "conversations"])
+
+        user_ref.delete()
+        auth.delete_user(user_id)
+        return True
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return False

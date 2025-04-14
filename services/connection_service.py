@@ -3,6 +3,8 @@ import uuid
 from flask import current_app
 from infrastructure.logger import get_logger
 from flask import jsonify
+from class_defs.profile_def import Profile
+from dataclasses import fields
 
 logger = get_logger(__name__)
 
@@ -11,11 +13,12 @@ def create_connection_profile(data):
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+        return False
 
+    profile = Profile.from_dict(data)
     short_id = uuid.uuid4().hex[:8]
     connection_id = f"{user_id}:{short_id}"
-    profile_data = {k: v for k, v in data.items() if k != "user_id"}
+    profile_data = profile.to_dict()
     profile_data["connection_id"] = connection_id
 
     try:
@@ -28,23 +31,26 @@ def create_connection_profile(data):
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+        return False
 
 def format_connection_profile(connection_id, profile_data):
+    profile = Profile.from_dict(profile_data)
     lines = [f"connection_id: {connection_id}"]
-    for key in [
-        "name", "age", "gender", "pronouns", "school", "job", "drinking", "ethnicity", "hometown"
-    ]:
-        value = profile_data.get(key)
-        if value:
-            lines.append(f"{key.capitalize()}: {value}")
 
-    green = profile_data.get("greenlight_topics", [])
-    red = profile_data.get("redlight_topics", [])
-    if green:
-        lines.append(f"Greenlight Topics: {', '.join(green)}")
-    if red:
-        lines.append(f"Redlight Topics: {', '.join(red)}")
+    for field in fields(Profile):
+        key = field.name
+        value = getattr(profile, key)
+
+        if key == "user_id" or value is None:
+            continue
+
+        if isinstance(value, list):
+            if value:
+                label = "Greenlight Topics" if key == "greenlights" else (
+                        "Redlight Topics" if key == "redlights" else key.capitalize())
+                lines.append(f"{label}: {', '.join(value)}")
+        else:
+            lines.append(f"{key.capitalize()}: {value}")
 
     return "\n".join(lines)
 
@@ -55,8 +61,9 @@ def save_user_profile(data):
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
+    profile = Profile.from_dict(data)
+    profile_data = profile.to_dict()
     try:
-        profile_data = {k: v for k, v in data.items() if k != "user_id"}
         db.collection("users").document(user_id).collection("profile").document("profile").set(profile_data)
         return {"status": "user profile saved"}
     except Exception as e:
@@ -72,8 +79,9 @@ def save_connection_profile(data):
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
+    profile = Profile.from_dict(data)
+    profile_data = profile.to_dict()
     try:
-        profile_data = {k: v for k, v in data.items() if k not in ["user_id", "connection_id"]}
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data)
         return {"status": "connection profile saved"}
     except Exception as e:
@@ -91,7 +99,7 @@ def get_user_profile(user_id):
         doc_ref = db.collection("users").document(user_id).collection("profile").document("profile")
         doc = doc_ref.get()
         if doc.exists:
-            return doc.to_dict()
+            return Profile.from_dict(doc.to_dict()).to_dict()
         else:
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")
@@ -113,8 +121,8 @@ def get_user_connections(user_id):
         connection_list = []
         for connection in connections:
             connection_data = connection.to_dict()
-            connection_data["connection_id"] = connection.id
-            connection_list.append(connection_data)
+            profile = Profile.from_dict(connection_data)
+            connection_list.append(profile.to_dict())
 
         return {"connections": connection_list}
     except Exception as e:
@@ -172,8 +180,8 @@ def get_connection_profile(user_id, connection_id):
         doc = db.collection("users").document(user_id).collection("connections").document(connection_id).get()
         if doc.exists:
             connection_data = doc.to_dict()
-            connection_data["connection_id"] = connection_id
-            return connection_data
+            profile = Profile.from_dict(connection_data)
+            return profile.to_dict()
         else:
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")
@@ -191,7 +199,7 @@ def update_connection_profile(user_id, connection_id, data):
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).update(data)
-        return {"status": "connection profile updated"}
+        return True ## {"status": "connection profile updated"}
     except Exception as e:
         return {"error": str(e)}, 500
 

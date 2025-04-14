@@ -2,9 +2,11 @@ from google.cloud import vision
 import cv2
 import numpy as np
 from flask import jsonify
-from utils.ocr_utils import extract_chat_messages, crop_top_bottom_cv
+from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
 from infrastructure.clients import vision_client
 from infrastructure.logger import get_logger
+from typing import Union, Dict
+import uuid
 
 client = vision_client
 logger = get_logger(__name__)
@@ -23,7 +25,7 @@ logger = get_logger(__name__)
     
     Will need to import Flask and request to use this error check. 
 """""
-def process_image(image_file):
+def process_image(image_file) -> Union[Dict, str]:
     try:
         # Save the file temporarily to process it
         image_byte = image_file.read()
@@ -54,10 +56,16 @@ def process_image(image_file):
             logger.error(f"Error: {err_point}: {response.error.message}")
             return jsonify({'error': f"[{err_point}] - Error - {response.error.messasge}"})
         
-        structured_messages = extract_chat_messages(response.full_text_annotation.pages[0])
+        conversation = extract_conversation(response.full_text_annotation.pages[0])
         
-        if structured_messages:
-            return {"final_text": structured_messages}
+        conversation.user_id = "unknown"  # Replace with actual user_id if available
+        conversation.connection_id = "unknown"  # Replace if known
+        conversation.situation = "unspecified"  # Optionally inferred elsewhere
+        conversation.topic = "unspecified"  # Optionally inferred elsewhere
+        conversation.conversation_id = str(uuid.uuid4())
+
+        if conversation:
+            return {"conversation": conversation.to_dict()}
         else:
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")

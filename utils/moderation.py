@@ -16,7 +16,7 @@ TOO_MUCH_EMOJI = re.compile(r"[\U0001F600-\U0001F64F]{3,}")
 
 def moderate_topic(text: str) -> dict:
     """
-    Evaluates a quick topic string for safety.
+    Evaluates a topic string for safety.
     Returns a dict with `safe: bool` and optionally `reason: str`.
     """
     if not text or not isinstance(text, str):

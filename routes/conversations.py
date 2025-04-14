@@ -20,7 +20,7 @@ conversations_bp = Blueprint("conversations", __name__)
 @conversations_bp.route("/conversations", methods=["GET"])
 @require_auth
 def get_conversations_bp():
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -48,7 +48,7 @@ def get_conversations_bp():
 @require_auth
 def save_conversation_bp():
     data = request.get_json()
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -59,7 +59,7 @@ def save_conversation_bp():
 @conversations_bp.route("/conversations/<conversation_id>", methods=["GET"])
 @require_auth
 def get_conversation_bp(conversation_id):
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -117,7 +117,7 @@ def fetch_saved_messages_bp():
 @require_auth
 def save_message_bp():
     data = request.get_json()
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -130,7 +130,7 @@ def save_message_bp():
 @conversations_bp.route("/saved-messages/<message_id>", methods=["DELETE"])
 @require_auth
 def delete_saved_message_bp(message_id):
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")

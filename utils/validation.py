@@ -1,4 +1,5 @@
 from flask import current_app
+from class_defs.conversation_def import Spur
 
 def validate_and_normalize_output(spur_dict):
     """
@@ -37,15 +38,22 @@ COMMON_PHRASES = [
     "how are you doing"
 ]
 
-def spurs_to_regenerate(variants: dict[str, str]) -> dict[str, str]:
+def spurs_to_regenerate(spurs: list[Spur]) -> list[Spur]:
+    """
+    Identifies SPURs that should be regenerated based on generic or weak phrasing.
     
-    spurs_to_regenerate = []
-    
-    for key, message in variants.items():
-        if any(phrase in message.lower() for phrase in COMMON_PHRASES):
-            spurs_to_regenerate.append[variants.get(key)]
-    
-    return spurs_to_regenerate
+    Args:
+        spurs (list[Spur]): List of Spur objects.
+
+    Returns:
+        list[Spur]: Subset of Spur objects flagged for regeneration.
+    """
+    spurs_to_retry = []
+    for spur in spurs:
+        message = getattr(spur, "text", "").lower()
+        if any(phrase in message for phrase in COMMON_PHRASES):
+            spurs_to_retry.append(spur)
+    return spurs_to_retry
 
 CONFIDENCE_THRESHOLDS = {
     "high": 0.75,

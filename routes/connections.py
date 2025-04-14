@@ -27,7 +27,7 @@ def save_connection():
 @connection_bp.route("/connection/fetch-all", methods=["GET"])
 @require_auth
 def fetch_user_connections():
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     result = get_user_connections(user_id)
     return jsonify(result)
 
@@ -35,7 +35,7 @@ def fetch_user_connections():
 @require_auth
 def set_active_connection():
     data = request.get_json()
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if data.get("connection_id"):
         connection_id = data["connection_id"]
     else:
@@ -51,7 +51,7 @@ def set_active_connection():
 @connection_bp.route("/connection/get-active", methods=["GET"])
 @require_auth
 def get_active_connection():
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -62,7 +62,7 @@ def get_active_connection():
 @connection_bp.route("/connection/clear-active", methods=["DELETE"])
 @require_auth
 def clear_active_connection():
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -80,7 +80,7 @@ def create_connection():
 @connection_bp.route("/connection/fetch-single", methods=["GET"])
 @require_auth
 def fetch_single_connection():
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     connection_id = request.args.get("connection_id")
     result = get_connection_profile(user_id, connection_id)
     return jsonify(result)
@@ -89,7 +89,7 @@ def fetch_single_connection():
 @require_auth
 def update_connection():
     data = request.get_json()
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     connection_id = data.get("connection_id")
     if not user_id or not connection_id:
         err_point = __package__ or __name__
@@ -103,7 +103,7 @@ def update_connection():
 @require_auth
 def delete_connection():
     data = request.get_json()
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     connection_id = data.get("connection_id")
     if not user_id or not connection_id:
         err_point = __package__ or __name__

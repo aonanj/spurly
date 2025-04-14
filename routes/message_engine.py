@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 @sanitize_topic
 def generate():
     data = request.get_json()
-    user_id = g.user['uid']
+    user_id = g.user['user_id']
     conversation = data.get("conversation", "")
     user_profile = data.get("user_profile", {})
     active_connection_id = data.get("connection_id")
