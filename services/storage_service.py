@@ -4,76 +4,10 @@ import uuid
 from gpt_training.anonymizer import anonymize_conversation
 from infrastructure.clients import db
 from infrastructure.logger import get_logger
+from flask import current_app
 
 
 logger = get_logger(__name__)
-
-def save_message(user_id, message):
-    try:
-        if not user_id:
-            err_point = __package__ or __name__
-            logger.error(f"error - {err_point} - No user_id in context")
-            return f"error - {err_point} - No user_id in context"
-
-        doc_ref = db.collection("users").document(user_id).collection("messages").document()
-        doc_ref.set({
-            "text": message.get("text", ""),
-            "variant": message.get("variant", ""),
-            "situation": message.get("situation", ""),
-            "date_saved": datetime.utcnow()
-        })
-
-        return {"status": "message saved", "message_id": doc_ref.id}
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error: {err_point} - Error: {str(e)}", 500
-
-def get_saved_messages(user_id, filters=None):
-    if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
-    try:
-        ref = db.collection("users").document(user_id).collection("messages")
-        query = ref
-
-        if filters:
-            if "variant" in filters:
-                query = query.where("variant", "==", filters["variant"])
-            if "situation" in filters:
-                query = query.where("situation", "==", filters["situation"])
-            if "date_from" in filters:
-                query = query.where("date_saved", ">=", filters["date_from"])
-            if "date_to" in filters:
-                query = query.where("date_saved", "<=", filters["date_to"])
-            sort_order = filters.get("sort", "desc")
-            direct = firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING
-            query = query.order_by("date_saved", direction=direct)
-
-        keyword = filters.get("keyword", "").lower() if filters else ""
-
-        docs = query.stream()
-        result = []
-        for doc in docs:
-            data = doc.to_dict()
-            if keyword and keyword not in data.get("text", "").lower():
-                continue  # Skip if keyword not in text
-
-            result.append({
-                "message_id": doc.id,
-                "variant": data.get("variant"),
-                "text": data.get("text"),
-                "situation": data.get("situation"),
-                "date_saved": data.get("date_saved")
-            })
-
-        return result
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
-
 
 def save_conversation(user_id, data):
     if not user_id:
@@ -81,23 +15,31 @@ def save_conversation(user_id, data):
         logger.error(f"Error: {err_point}")
         return f"error - {err_point} - Error:", 400
 
-    connection_id = data.get("connection_id")
-    if not connection_id or not connection_id.startswith(f"{user_id}:"):
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
-
+    connection_id = data.get("connection_id", None)
+    
+    ocr_marker = current_app.config["OCR_MARKER"]
+    conversation_id = data.get("conversation_id")
+    if not conversation_id:
+        conversation_id = f"{user_id}:{str(uuid.uuid4())}"
+    elif conversation_id.startswith(":") and conversation_id.endswith(ocr_marker):
+        conversation_id = f"{user_id}{conversation_id}"
+    else:
+        conversation_id = f"{user_id}:{str(uuid.uuid4())}"
+        
+    spurs = data.get("spurs", None)
+    situation = data.get("situation", "")
+    topic = data.get("topic", "")
+    
     try:
-        conversation_id = str(uuid.uuid4())
         doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
 
         doc_data = {
             "conversation_id": conversation_id,
             "conversation": data.get("conversation", []),
             "connection_id": data.get("connection_id", None),
-            "situation": data.get("situation", ""),
-            "topic": data.get("topic", ""),
-            "spurs": data.get("spurs", {}),
+            "situation": situation,
+            "topic": topic,
+            "spurs": spurs,
             "created_at": datetime.utcnow()
         }
 
@@ -137,21 +79,6 @@ def delete_conversation(user_id, conversation_id):
 
     db.collection("users").document(user_id).collection("conversations").document(conversation_id).delete()
     return {"status": "conversation deleted"}
-
-def delete_saved_message(user_id, message_id):
-    if not user_id or not message_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
-
-    try:
-        doc_ref = db.collection("users").document(user_id).collection("messages").document(message_id)
-        doc_ref.delete()
-        return {"status": "message deleted"}
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
 
 def get_conversations(user_id, filters=None):
     """

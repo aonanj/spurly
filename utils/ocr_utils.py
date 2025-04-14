@@ -2,10 +2,7 @@ import cv2
 import numpy as np
 import re
 from infrastructure.logger import get_logger
-from class_defs.conversation_def import Conversation
-from datetime import datetime
-import uuid
-from typing import Any, Union
+from typing import Any, Union, Dict
 
 logger = get_logger(__name__)
 
@@ -85,7 +82,7 @@ def crop_top_bottom_cv(img: np.ndarray) -> Union[np.ndarray, None]:
 
     return cropped_image
 
-def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 0.80) -> Conversation:
+def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 0.80) -> Union[Dict, str]:
     """
     Extracts structured conversation text from a single Vision API page object.
     Filters out UI elements and metadata, identifies speaker by layout, and returns a Conversation object.
@@ -208,16 +205,7 @@ def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 
             for msg in block_data_for_sorting
         ]
 
-        return Conversation(
-            user_id="",  # to be filled in by caller or post-processing
-            conversation_id=str(uuid.uuid4()),
-            conversation=structured_messages,
-            connection_id="",  # to be filled in by caller or post-processing
-            situation="",  # to be filled in by caller or post-processing
-            topic="",  # to be filled in by caller or post-processing
-            spurs={},  # to be filled in by caller or post-processing
-            created_at=datetime.utcnow()
-        )
+        return structured_messages
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)

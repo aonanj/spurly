@@ -1,7 +1,7 @@
 from google.cloud import vision
 import cv2
 import numpy as np
-from flask import jsonify
+from flask import jsonify, current_app
 from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
 from infrastructure.clients import vision_client
 from infrastructure.logger import get_logger
@@ -56,16 +56,10 @@ def process_image(image_file) -> Union[Dict, str]:
             logger.error(f"Error: {err_point}: {response.error.message}")
             return jsonify({'error': f"[{err_point}] - Error - {response.error.messasge}"})
         
-        conversation = extract_conversation(response.full_text_annotation.pages[0])
-        
-        conversation.user_id = "unknown"  # Replace with actual user_id if available
-        conversation.connection_id = "unknown"  # Replace if known
-        conversation.situation = "unspecified"  # Optionally inferred elsewhere
-        conversation.topic = "unspecified"  # Optionally inferred elsewhere
-        conversation.conversation_id = str(uuid.uuid4())
+        conversation_msgs = extract_conversation(response.full_text_annotation.pages[0])
 
-        if conversation:
-            return {"conversation": conversation.to_dict()}
+        if conversation_msgs:
+            return conversation_msgs
         else:
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")

@@ -48,3 +48,6 @@ class Config:
     AI_TEMPERATURE_INITIAL = 0.9
     AI_TEMPERATURE_RETRY = .65
     AI_MAX_TOKENS = 600
+    
+    ##Used as part of conversation_id to flag conversations extracted via OCR
+    OCR_MARKER = "OCR"

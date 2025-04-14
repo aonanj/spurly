@@ -5,12 +5,12 @@ from infrastructure.logger import get_logger
 
 from services.storage_service import (
     get_conversations,
-    get_saved_messages,
+    get_saved_spurs,
     save_conversation,
     get_conversation,
     delete_conversation,
-    save_message,
-    delete_saved_message,
+    save_spur,
+    delete_saved_spur,
 )
 
 logger = get_logger(__name__)
@@ -78,9 +78,9 @@ def delete_conversation_bp(conversation_id):
     result = delete_conversation(user_id, conversation_id)
     return jsonify(result)
 
-@conversations_bp.route("/saved-messages", methods=["GET"])
+@conversations_bp.route("/saved-spurs", methods=["GET"])
 @require_auth
-def fetch_saved_messages_bp():
+def fetch_saved_spurs_bp():
     user_id = request.args.get("user_id")
     if not user_id:
         err_point = __package__ or __name__
@@ -110,12 +110,12 @@ def fetch_saved_messages_bp():
     if sort in ["asc", "desc"]:
         filters["sort"] = sort
 
-    result = get_saved_messages(user_id, filters)
+    result = get_saved_spurs(user_id, filters)
     return jsonify(result)
 
-@conversations_bp.route("/saved-messages", methods=["POST"])
+@conversations_bp.route("/saved-spurs", methods=["POST"])
 @require_auth
-def save_message_bp():
+def save_spur_bp():
     data = request.get_json()
     user_id = g.user['user_id']
     if not user_id:
@@ -123,18 +123,18 @@ def save_message_bp():
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
-    result = save_message(user_id, data)
+    result = save_spur(user_id, data)
     return jsonify(result)
 
 
-@conversations_bp.route("/saved-messages/<message_id>", methods=["DELETE"])
+@conversations_bp.route("/saved-spurs/<spur_id>", methods=["DELETE"])
 @require_auth
-def delete_saved_message_bp(message_id):
+def delete_saved_spurs_bp(spur_id):
     user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
-    result = delete_saved_message(user_id, message_id)
+    result = delete_saved_spur(user_id, spur_id)
     return jsonify(result)

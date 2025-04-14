@@ -4,6 +4,7 @@ from services.connection_service import get_active_connection_firestore, get_use
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
+import uuid
 
 message_bp = Blueprint("message", __name__)
 logger = get_logger(__name__)
@@ -17,6 +18,7 @@ def generate():
     data = request.get_json()
     user_id = g.user['user_id']
     conversation = data.get("conversation", "")
+    conversation_id = data.get("conversation_id")
     user_profile = data.get("user_profile", {})
     active_connection_id = data.get("connection_id")
     connection_profile = data.get("connection_profile", {})
@@ -40,7 +42,11 @@ def generate():
         else:
             connection_profile = None
     
+    if not conversation_id:
+        conversation_id = str(uuid.uuid4())
+    
     spurs, fallback_flags = generate_spurs(
+        conversation_id=conversation_id,
         conversation=conversation,
         user_profile=user_profile,
         connection_profile=connection_profile,
@@ -49,5 +55,6 @@ def generate():
     )
     return jsonify({
         "spurs": spurs,
-        "fallbacks": fallback_flags
+        "fallbacks": fallback_flags,
+        "conversation_id": conversation_id
     })

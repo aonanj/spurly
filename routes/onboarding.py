@@ -2,12 +2,13 @@ from flask import Blueprint, request, jsonify
 from infrastructure.auth import generate_user_id, create_jwt
 from infrastructure.logger import get_logger
 from services.user_service import save_user_profile
+from typing import Dict, Union
 
 onboarding_bp = Blueprint("onboarding", __name__)
 logger = get_logger(__name__)
 
 @onboarding_bp.route("/onboarding", methods=["POST"])
-def onboarding():
+def onboarding() -> Union[Dict, str]:
     try:
         data = request.get_json()
         age = data.get("age")

@@ -6,7 +6,7 @@ from utils.trait_manager import infer_tone, infer_situation
 from infrastructure.clients import chat_client
 from flask import current_app
 from infrastructure.logger import get_logger
-from class_defs.conversation_def import Spur
+from class_defs.spur_def import Spur
 from datetime import datetime
 import uuid
 from services.user_service import get_user_profile

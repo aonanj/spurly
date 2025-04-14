@@ -34,6 +34,16 @@ def create_connection_profile(data):
         return False
 
 def format_connection_profile(connection_id, profile_data):
+    """
+    Converts a Profile object into a formatted string for human-readable display.
+
+    Args:
+        connection_id (str): The unique ID of the connection.
+        profile_data (dict): Dictionary representation of the Profile.
+
+    Returns:
+        str: A multiline formatted string summarizing the profile contents.
+    """
     profile = Profile.from_dict(profile_data)
     lines = [f"connection_id: {connection_id}"]
 
@@ -99,7 +109,7 @@ def get_user_profile(user_id):
         doc_ref = db.collection("users").document(user_id).collection("profile").document("profile")
         doc = doc_ref.get()
         if doc.exists:
-            return Profile.from_dict(doc.to_dict()).to_dict()
+            return Profile.from_dict(doc.to_dict())
         else:
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")
