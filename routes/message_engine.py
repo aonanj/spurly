@@ -4,12 +4,12 @@ from services.connection_service import get_active_connection_firestore, get_use
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
-import uuid
+from uuid import uuid4
 
 message_bp = Blueprint("message", __name__)
 logger = get_logger(__name__)
 
-@message_bp.route("/generate", methods=["POST"])
+@message_bp.route("/spurs", methods=["POST"])
 @require_auth
 @validate_profile
 @enrich_context
@@ -42,8 +42,8 @@ def generate():
         else:
             connection_profile = None
     
-    if not conversation_id:
-        conversation_id = str(uuid.uuid4())
+    if conversation and not conversation_id:
+        conversation_id = f"{user_id}:{uuid4().hex[:6]}"
     
     spurs, fallback_flags = generate_spurs(
         conversation_id=conversation_id,

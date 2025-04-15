@@ -5,27 +5,26 @@ from flask import jsonify, current_app
 from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
 from infrastructure.clients import vision_client
 from infrastructure.logger import get_logger
-from typing import Union, Dict
-import uuid
 
 client = vision_client
 logger = get_logger(__name__)
 
-"""""
-    Accepts a file_name as an arg, file should be a screen shot of a messaging conversation. 
-    file should be in request.files. Perform error check before calling ocr(...) -->
-            
-            if 'file' not in request.files:
-                return jsonify({"error": "No file part"})
+
+def process_image(image_file) -> dict:
+    """""
+        Accepts a file_name as an arg, file should be a screen shot of a messaging conversation. 
+        file should be in request.files. Perform error check before calling ocr(...) -->
                 
-            file = request.files['file']
-            
-            if file.filename == '':
-                return jsonify({"error": "No selected file"})
-    
-    Will need to import Flask and request to use this error check. 
-"""""
-def process_image(image_file) -> Union[Dict, str]:
+                if 'file' not in request.files:
+                    return jsonify({"error": "No file part"})
+                    
+                file = request.files['file']
+                
+                if file.filename == '':
+                    return jsonify({"error": "No selected file"})
+        
+        Will need to import Flask and request to use this error check. 
+    """""
     try:
         # Save the file temporarily to process it
         image_byte = image_file.read()

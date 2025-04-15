@@ -1,9 +1,9 @@
 from infrastructure.clients import db
-import uuid
+from uuid import uuid4
 from flask import current_app
 from infrastructure.logger import get_logger
 from flask import jsonify
-from class_defs.profile_def import Profile
+from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
 
 logger = get_logger(__name__)
@@ -15,8 +15,8 @@ def create_connection_profile(data):
         logger.error(f"Error: {err_point}")
         return False
 
-    profile = Profile.from_dict(data)
-    short_id = uuid.uuid4().hex[:8]
+    profile = ConnectionProfile.from_dict(data)
+    short_id = str(uuid4().hex[:5])
     connection_id = f"{user_id}:{short_id}"
     profile_data = profile.to_dict()
     profile_data["connection_id"] = connection_id
@@ -35,19 +35,19 @@ def create_connection_profile(data):
 
 def format_connection_profile(connection_id, profile_data):
     """
-    Converts a Profile object into a formatted string for human-readable display.
+    Converts a ConnectionProfile object into a formatted string for human-readable display.
 
     Args:
         connection_id (str): The unique ID of the connection.
-        profile_data (dict): Dictionary representation of the Profile.
+        profile_data (dict): Dictionary representation of the ConnectionProfile.
 
     Returns:
         str: A multiline formatted string summarizing the profile contents.
     """
-    profile = Profile.from_dict(profile_data)
+    profile = ConnectionProfile.from_dict(profile_data)
     lines = [f"connection_id: {connection_id}"]
 
-    for field in fields(Profile):
+    for field in fields(ConnectionProfile):
         key = field.name
         value = getattr(profile, key)
 
@@ -64,23 +64,6 @@ def format_connection_profile(connection_id, profile_data):
 
     return "\n".join(lines)
 
-def save_user_profile(data):
-    user_id = data.get("user_id")
-    if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
-
-    profile = Profile.from_dict(data)
-    profile_data = profile.to_dict()
-    try:
-        db.collection("users").document(user_id).collection("profile").document("profile").set(profile_data)
-        return {"status": "user profile saved"}
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
-
 def save_connection_profile(data):
     user_id = data.get("user_id")
     connection_id = data.get("connection_id")
@@ -89,31 +72,11 @@ def save_connection_profile(data):
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
-    profile = Profile.from_dict(data)
+    profile = ConnectionProfile.from_dict(data)
     profile_data = profile.to_dict()
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data)
         return {"status": "connection profile saved"}
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
-
-def get_user_profile(user_id):
-    if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
-
-    try:
-        doc_ref = db.collection("users").document(user_id).collection("profile").document("profile")
-        doc = doc_ref.get()
-        if doc.exists:
-            return Profile.from_dict(doc.to_dict())
-        else:
-            err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
-            return jsonify({'error': f"[{err_point}] - Error:"}), 404
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
@@ -131,7 +94,7 @@ def get_user_connections(user_id):
         connection_list = []
         for connection in connections:
             connection_data = connection.to_dict()
-            profile = Profile.from_dict(connection_data)
+            profile = ConnectionProfile.from_dict(connection_data)
             connection_list.append(profile.to_dict())
 
         return {"connections": connection_list}
@@ -190,7 +153,7 @@ def get_connection_profile(user_id, connection_id):
         doc = db.collection("users").document(user_id).collection("connections").document(connection_id).get()
         if doc.exists:
             connection_data = doc.to_dict()
-            profile = Profile.from_dict(connection_data)
+            profile = ConnectionProfile.from_dict(connection_data)
             return profile.to_dict()
         else:
             err_point = __package__ or __name__
@@ -209,7 +172,7 @@ def update_connection_profile(user_id, connection_id, data):
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).update(data)
-        return True ## {"status": "connection profile updated"}
+        return {"status": "connection profile updated"}
     except Exception as e:
         return {"error": str(e)}, 500
 

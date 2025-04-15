@@ -3,7 +3,7 @@ from services.ocr_service import process_image
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
 from class_defs.conversation_def import Conversation
-import uuid
+from uuid import uuid4
 from datetime import datetime
 
 ocr_bp = Blueprint("ocr", __name__)
@@ -26,16 +26,16 @@ def upload_image():
     topic = request.form.get("topic", "").strip()
     conversation_id=request.form.get("conversation_id", None), 
     
-    connection_id_stub = current_app.config["NULL_CONNECTION_ID"]
+    connection_id_stub = current_app.config['NULL_CONNECTION_ID']
     if not connection_id:
         connection_id = f"{user_id}:{connection_id_stub}"
     
     connection_id.strip()
     
-    ocr_marker = current_app.config["OCR_MARKER"]
+    ocr_marker = current_app.config['OCR_MARKER']
     conversation_id = request.form.get("conversation_id")
     if not conversation_id:
-        conversation_id = f"{user_id}:{str(uuid.uuid4())}"
+        conversation_id = f"{user_id}:{uuid4().hex[:6]}"
     elif conversation_id.startswith(":") and conversation_id.endswith(ocr_marker):
         conversation_id = f"{user_id}{conversation_id}"
     

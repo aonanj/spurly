@@ -1,16 +1,39 @@
 from infrastructure.clients import db
-from flask import jsonify
+from flask import jsonify, current_app
 from firebase_admin import auth
 from infrastructure.logger import get_logger
-from class_defs.profile_def import Profile
+from class_defs.profile_def import UserProfile
+from class_defs.spur_def import Spur
 from dataclasses import fields
 
 logger = get_logger(__name__)
+default_log_level = current_app.config['DEFAULT_LOG_LEVEL']
 
-def format_user_profile(profile: Profile) -> str:
-    lines = [f"user_id: {profile.user_id}"]
+def format_user_profile(profile: UserProfile) -> str:
+    """
+    
+    Converts the user profile information to formatted text to be passed to the frontend.
+    
+    Args
+        profile: Current user's profile
+            UserProfile 
+        
+    Return
+        formatted string including user's profile information.
+    
+    """
+    user_id = profile.get("user_id")
+    if not user_id:
+        logger.error("Error: Missing user ID - format user profile failed")
+        raise ValueError("Format user profile failed: Missing user ID")
 
-    for field in fields(Profile):
+    if not isinstance(profile, UserProfile):
+        logger.error("Error: Type mismatch - format user profile failed")
+        raise TypeError("Format user profile failed: Type mismatch")
+  
+    lines = [f"user_id: {user_id}"]
+
+    for field in fields(UserProfile):
         key = field.name
         value = getattr(profile, key)
 
@@ -24,18 +47,34 @@ def format_user_profile(profile: Profile) -> str:
                 lines.append(f"{label}: {', '.join(value)}")
         else:
             lines.append(f"{key.capitalize()}: {value}")
-
+            
+    logger.log(default_log_level, "Formatting user profile as text for UX/UI use.")
     return "\n".join(lines)
 
-def save_user_profile(data):
+def save_user_profile(data: UserProfile) -> bool:
+    """
+    
+    Saves the current user's profile information to persistent memory (e.g., Firestore).
+    
+    Args:
+        data: A UserProfile object including all of the user's current profile information
+    
+    Return:
+        str:    String indicating that user profile is saved.
+    
+    """
+    
     user_id = data.get("user_id")
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
+        logger.error("Error: Missing user ID - save user profile failed")
+        raise ValueError("Save user profile failed: Missing user ID")
+
+    if not isinstance(data, UserProfile):
+        logger.error("Error: Type mismatch - save user profile failed")
+        raise TypeError("Save user profile failed: Type mismatch")
 
     try:
-        profile = Profile.from_dict(data)
+        profile = UserProfile.from_dict(data)
         profile_doc = format_user_profile(profile)
         user_ref = db.collection("users").document(user_id)
         user_ref.set({
@@ -43,63 +82,93 @@ def save_user_profile(data):
             "profile_entries": profile_doc,
             "fields": profile.to_dict()
         })
-        return {"status": "user profile saved"}
+        logger.log(default_log_level, "User profile successfully saved.")
+        return {"status": "user profile successfully saved"}
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
+        logger.error("[%s] Error: %s save user profile failed", __name__, e)
+        raise ValueError(f"Save user profile failed: {e}") from e
 
-def get_user_profile(user_id):
+def get_user_profile(user_id) -> UserProfile:
+    """
+    
+    Gets a current user's profile information from persistent memory (e.g., Firestore).
+    
+    Args:
+        user_id: A user ID of the user profile to be returned. 
+    
+    Return:
+        UserProfile object: The user profile (as a UserProfile object) corresponding to the user_id     
+    """
+    
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 404
+        logger.error("Error: Missing user ID - get user profile failed")
+        raise ValueError("Error: Missing user ID - get user profile failed")
 
     try:
         user_ref = db.collection("users").document(user_id)
         doc = user_ref.get()
 
         if not doc.exists:
-            err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
-            return jsonify({"error": f"[{err_point}] - User not found"}), 404
+            logger.error("Error: No user profile - get user profile failed")
+            raise ValueError("Error: No user profile - get user profile failed")
 
         data = doc.to_dict()
-        profile = Profile.from_dict(data.get("fields", {}))
-        return jsonify({
-            "user_id": user_id,
-            "profile_entries": data.get("profile_entries", ""),
-            "fields": profile.to_dict()
-        })
+        user_profile = UserProfile.from_dict(data)
+        return user_profile
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+        logger.error("[%s] Error: %s get user profile failed", __name__, e)
+        raise ValueError(f"Get user profile failed: {e}") from e
 
-def update_user_profile(user_id, profile_data):
+def update_user_profile(user_id: str, profile_data: UserProfile) -> bool:
+    """
+    
+    Adds or replaces information in the user's profile 
+    
+    Args:
+        data: A UserProfile object including all of the user's current profile information
+    
+    Return:
+        str:    String indicating user's profile is updated and saved.
+    
+    """
+    if not user_id:
+        logger.error("Error: Missing user ID - update user profile failed")
+        raise ValueError("Error: Missing user ID - update user profile failed")
+    
     try:
         data = profile_data
-        profile = Profile.from_dict({"user_id": user_id, **data})
+        profile = UserProfile.from_dict({"user_id": user_id, **data})
         user_ref = db.collection("users").document(user_id)
         user_ref.set({
             "user_id": user_id,
             "profile_entries": format_user_profile(profile),
             "fields": profile.to_dict()
         })
+        logger.log
         return jsonify({
             "user_id": user_id,
             "user_profile": profile.to_dict()
         })
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
+        logger.error("[%s] Error: %s Update user profile failed", __name__, e)
+        raise ValueError(f"Update user profile failed: {e}") from e
 
 def delete_user_profile(user_id):
+    """
+    
+    Deletes a user's profile and all related information (e.g., connections, spurs, conversations, etc.)
+        from persistant memory. 
+    
+    Args:
+        user_id: The user id corresponding to the data to be deleted. 
+    
+    Return:
+        str:    String indicating user's profile and other information has been deleted.
+    
+    """
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return False
+        logger.error("Error: Missing user ID - delete user profile failed")
+        raise ValueError("Error: Missing user ID - delete user profile failed")
     try:
         user_ref = db.collection("users").document(user_id)
 
@@ -107,7 +176,7 @@ def delete_user_profile(user_id):
         doc = user_ref.get()
         if doc.exists:
             profile_data = doc.to_dict().get("fields", {})
-            profile = Profile.from_dict(profile_data)
+            profile = UserProfile.from_dict(profile_data)
             logger.info(f"Deleting user profile: {profile.to_dict()}")
 
         def delete_subcollections(parent_ref, subcollection_names):
@@ -121,8 +190,36 @@ def delete_user_profile(user_id):
 
         user_ref.delete()
         auth.delete_user(user_id)
-        return True
+        return {f"status" : "user profile successfully deleted"}
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return False
+        logger.error("[%s] Error: %s Delete user profile failed", __name__, e)
+        raise ValueError(f"Delete user profile failed: {e}") from e
+    
+def update_spur_preferences(user_id: str, selected_spurs: list[str]) -> None:
+    """
+    
+    Updates user setting for which spurs to generate, as configured by the user in the frontend settings menu.
+    
+    Args:
+        user_id: The user id corresponding to the settings being updated. 
+            string
+        selected_spurs: The key names for each of the spur variants to be generated for the user.
+            List[strings]
+    
+    Return:
+        str:    String indicating spur variant settings for the user have been updated.
+    
+    """
+    if not user_id:
+        logger.error("Error: Missing user ID - update user spur preferences failed")
+        raise ValueError("Error: Missing user ID - update user spur preferences failed")
+    
+    if not selected_spurs:
+        logger.error("Error: Missing spur preferences - update user spur preferences failed")
+        raise ValueError("Error: Missing spur preferences - update user spur preferences failed")
+    
+    try:
+        db.collection("users").document(user_id).update({ "selected_spurs": selected_spurs})
+    except Exception as e:
+        logger.error("[%s] Error: %s Update user spur preferences failed", __name__, e)
+        raise ValueError(f"Update user spur preferences failed: {e}") from e

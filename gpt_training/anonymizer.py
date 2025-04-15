@@ -1,8 +1,9 @@
 from datetime import datetime
-import uuid
+from uuid import uuid4
 from infrastructure.clients import db
 from infrastructure.logger import get_logger
 from flask import current_app
+from class_defs.conversation_def import Conversation
 
 logger = get_logger(__name__)
 
@@ -24,14 +25,18 @@ def anonymize_conversation(convo, user_profile=None, connection_profile=None, si
     """
     try:
         if not convo or not isinstance(convo, list):
-            raise ValueError("Invalid conversation format. Expected a list of messages.")
+            logger.error("Invalid conversation format. List of messages expected.")
+            raise TypeError("Invalid conversation format. List of messages expected.")
         elif user_profile is None or not isinstance(user_profile, dict):
-            raise ValueError("Invalid user profile format. Expected a dictionary.")
+            logger.error("Invalid user profile format. Dictionary expected.")
+            raise TypeError("Invalid user profile format. Dictionary expected.")
         elif connection_profile is None or not isinstance(connection_profile, dict):
-            raise ValueError("Invalid connection profile format. Expected a dictionary.")   
+            logger.error("Invalid connection profile format. Dictionary expected.")   
+            raise TypeError("Invalid connection profile format. Dictionary expected.")   
 
         if not all("text" in message and "speaker" in message for message in convo):
-            raise ValueError("Invalid conversation format. Each message must contain 'text' and 'speaker' keys.")
+            logger.error("Invalid conversation format. Keys 'text' and 'speaker' expected.")
+            raise ValueError("Invalid conversation format. Keys 'text' and 'speaker' expected.")
         
         if not isinstance(user_profile.get("gender"), str):
             user_label = "Person A"
@@ -59,22 +64,32 @@ def anonymize_conversation(convo, user_profile=None, connection_profile=None, si
                 "speaker": speaker_label,
                 "text": text
             })
-        save_conversation(anonymized_messages, situation, topic)
+        save_anonymized_conversation(anonymized_messages, situation, topic)
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error anonymizing conversation: %s", err_point, e)
-        raise Exception(f"[{err_point}] - Error anonymizing conversation: {str(e)}")
+        logger.error("[%s] Error: %s Anonymizing conversation failed", __name__, e)
+        raise ValueError(f"Anonymizing conversation failed: {e}") from e
 
     return True
 
-def save_conversation(convo, situation="", topic=""):
+def save_anonymized_conversation(convo, situation="", topic=""):
+    """
+    Saves an anonymized conversation for training the AI model underlying the app.
 
-    conversation_id = str(uuid.uuid4())
+    Args:
+        Convo (list[dict]): List of dictionaries (messages) in the conversation. JSON format.
+        situation (str): Situation description.
+        topic (str): Topic description.
+
+    Returns:
+        True if anonymoized conversation is saved.
+    """
+    
+    anonymized_conversation_id = str(f"ac{uuid4().hex[:12]}")
     try:
         training_ref = db.collection("training").document("conversations").collection("batch").document()
         
         training_ref.set({
-            "conversation_id": conversation_id,
+            "anonymized_conversation_id": anonymized_conversation_id,
             "anonymized_conversation": convo,
             "situation": situation,
             "topic": topic,
@@ -82,6 +97,5 @@ def save_conversation(convo, situation="", topic=""):
         })
         return True
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error anonymizing conversation: %s", err_point, e)
-        raise Exception(f"[{err_point}] - Error anonymizing conversation: {str(e)}")
+        logger.error("[%s] Error: %s Save anonymized conversation failed", __name__, e)
+        raise ValueError(f"Save anonymized conversation failed: {e}") from e

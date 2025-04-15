@@ -1,6 +1,6 @@
 from google.cloud import firestore
 from datetime import datetime 
-import uuid
+from uuid import uuid4
 from gpt_training.anonymizer import anonymize_conversation
 from infrastructure.clients import db
 from infrastructure.logger import get_logger
@@ -17,14 +17,14 @@ def save_conversation(user_id, data):
 
     connection_id = data.get("connection_id", None)
     
-    ocr_marker = current_app.config["OCR_MARKER"]
+    ocr_marker = current_app.config['OCR_MARKER']
     conversation_id = data.get("conversation_id")
     if not conversation_id:
-        conversation_id = f"{user_id}:{str(uuid.uuid4())}"
+        conversation_id = f"{user_id}:{str(uuid4().hex[:6])}"
     elif conversation_id.startswith(":") and conversation_id.endswith(ocr_marker):
         conversation_id = f"{user_id}{conversation_id}"
     else:
-        conversation_id = f"{user_id}:{str(uuid.uuid4())}"
+        conversation_id = f"{user_id}:{str(uuid4().hex[:6])}"
         
     spurs = data.get("spurs", None)
     situation = data.get("situation", "")

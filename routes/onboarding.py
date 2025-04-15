@@ -1,14 +1,27 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from infrastructure.auth import generate_user_id, create_jwt
 from infrastructure.logger import get_logger
 from services.user_service import save_user_profile
 from typing import Dict, Union
+
 
 onboarding_bp = Blueprint("onboarding", __name__)
 logger = get_logger(__name__)
 
 @onboarding_bp.route("/onboarding", methods=["POST"])
 def onboarding() -> Union[Dict, str]:
+    """
+    
+    Onboarding route for initial login. User information stored in persisntent memory. User ID generated. 
+    
+    Args:
+        none
+        
+    Return: 
+        Dictionary, key is user ID and entry is user profile. 
+    
+    """
+    
     try:
         data = request.get_json()
         age = data.get("age")
@@ -19,13 +32,19 @@ def onboarding() -> Union[Dict, str]:
         
         user_id = generate_user_id()
         token = create_jwt(user_id)
+        
+        ### selected_spurs are the spur variants generated for this user. Default is all variants in global constant SPUR_VARIANTS. 
+        ### User is able to select a subset to be generated, and that selected subset persists until the user changes it. 
+        if not data.get("selected_spurs"):
+            selected_spurs = current_app.config['SPUR_VARIANTS']
 
         def format_field(key):
             val = data.get(key)
             return f"{key.capitalize()}: {val}" if val else None
         
         profile_fields = [
-            f"UID: {user_id}",
+            f"user_id: {user_id}",
+            f"selected_spurs: {selected_spurs}"
             f"Age: {age}",
             format_field("name"),
             format_field("gender"),

@@ -15,10 +15,11 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
         parsed = json.loads(cleaned)
 
         # Step 2: Check all expected fields are present
-        spur_keys = current_app.config["SPUR_VARIANTS"]
+        spur_keys = current_app.config['SPUR_VARIANTS']
+        fallback = parsed.get("warm_spur") or parsed.get("main_spur") or ""
         for key in spur_keys:
-            fallback = parsed.get("warm_spur") or parsed.get("main_spur") or ""
-            parsed[key] = fallback
+            if key not in parsed or not parsed.get(key):
+                parsed[key] = fallback
 
         # Step 3: Apply phrase filter and sanitization
         safe_output = apply_phrase_filter(parsed)

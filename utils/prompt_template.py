@@ -9,7 +9,6 @@ def build_prompt(selected_spurs: list[str], context_block: str) -> str:
         """
         Constructs the dynamic GPT prompt using system rules + conversation context.
         """
-        system_prompt = open(current_app.config['SPURLY_SYSTEM_PROMPT'].read())
 
         valid_spurs = [v for v in selected_spurs if v in current_app.config['SPUR_VARIANT_DESCRIPTIONS']]
         if not valid_spurs:

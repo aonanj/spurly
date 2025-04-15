@@ -18,9 +18,9 @@ def create_app():
     app.config.from_object("config.Config")
     app.register_blueprint(onboarding_bp, url_prefix="/onboarding")
     app.register_blueprint(ocr_bp, url_prefix="/ocr")
-    app.register_blueprint(message_bp, url_prefix="/generate")
+    app.register_blueprint(message_bp, url_prefix="/spurs")
     app.register_blueprint(connection_bp, url_prefix="/connection")
-    app.register_blueprint(feedback_bp, url_prefix="/spur")
+    app.register_blueprint(feedback_bp, url_prefix="/feedback")
     app.register_blueprint(conversations_bp, url_prefix="/conversations")
     app.register_blueprint(user_management_bp, url_prefix="/user")
     app.register_blueprint(context_bp, url_prefix="/context")
@@ -32,5 +32,5 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
     init_clients(app)
+    app.run(debug=True)
