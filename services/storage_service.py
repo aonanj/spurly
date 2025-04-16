@@ -1,30 +1,48 @@
+from class_defs.conversation_def import Conversation
+from datetime import datetime, timezone, timedelta, date
+from flask import current_app
 from google.cloud import firestore
-from datetime import datetime 
-from uuid import uuid4
 from gpt_training.anonymizer import anonymize_conversation
 from infrastructure.clients import db
+from infrastructure.id_generator import generate_conversation_id, extract_user_id_from_other_id
 from infrastructure.logger import get_logger
-from flask import current_app
+from uuid import uuid4
 
 
 logger = get_logger(__name__)
 
-def save_conversation(user_id, data):
-    if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
+def save_conversation(data: Conversation) -> str:
+    
+    """
+    Saves a conversation with the conversation_id.
+
+    Args
+        data: the conversation data associated with the active user to be saved
+            Conversation 
+
+    Return
+        status: indicates if conversation is saved
+            str
+
+    """
+
+    user_id = extract_user_id_from_other_id(conversation_id)
+
+    if not user_id or not conversation_id:
+        logger.error("Error: Failed to save conversation - missing user_id or conversation_id ", __name__)
+        return {"error": "Missing user_id or conversation_id"}, 400
 
     connection_id = data.get("connection_id", None)
     
-    ocr_marker = current_app.config['OCR_MARKER']
     conversation_id = data.get("conversation_id")
+
     if not conversation_id:
-        conversation_id = f"{user_id}:{str(uuid4().hex[:6])}"
-    elif conversation_id.startswith(":") and conversation_id.endswith(ocr_marker):
+        conversation_id = generate_conversation_id(user_id)
+    elif conversation_id.startswith(":"):
         conversation_id = f"{user_id}{conversation_id}"
     else:
-        conversation_id = f"{user_id}:{str(uuid4().hex[:6])}"
+        conversation_id_indicator = current_app.config['CONVERSATION_ID_INDICATOR']
+        conversation_id = f"{user_id}:{str(uuid4().hex[:6])}:{conversation_id_indicator}"
         
     spurs = data.get("spurs", None)
     situation = data.get("situation", "")
@@ -34,32 +52,42 @@ def save_conversation(user_id, data):
         doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
 
         doc_data = {
+            "user_id": user_id,
             "conversation_id": conversation_id,
             "conversation": data.get("conversation", []),
-            "connection_id": data.get("connection_id", None),
+            "connection_id": connection_id,
             "situation": situation,
             "topic": topic,
             "spurs": spurs,
             "created_at": datetime.utcnow()
         }
 
-        anonymize_conversation(
-            data.get("conversation", []),
-            data.get("user_profile", {}),
-            data.get("connection_profile", {}),
-            data.get("situation", ""),
-            data.get("topic", "")
-        )
+        anonymize_conversation(Conversation.from_dict(doc_data))
 
         doc_ref.set(doc_data)
         return {"status": "conversation saved", "conversation_id": conversation_id}
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
+        logger.error("[%s] Error: %s Anonymizing conversation failed", __name__, e)
+        raise ValueError(f"Anonymizing conversation failed: {e}") from e
+        
 
-def get_conversation(user_id, conversation_id):
+def get_conversation(conversation_id: str) -> Conversation:
+    """
+    Gets a conversation by the conversation_id.
+
+    Args
+        conversation_id: the unique id for the conversation requested
+            str
+    Return
+        conversation corresponding to the conversation_id
+            Conversation object
+
+    """
+    
+    user_id = extract_user_id_from_other_id(conversation_id)
+    
     if not user_id or not conversation_id:
+        logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
         return {"error": "Missing user_id or conversation_id"}, 400
 
     doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
@@ -67,18 +95,30 @@ def get_conversation(user_id, conversation_id):
     if doc.exists:
         return doc.to_dict()
     else:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 404
+        logger.error(f"Error: no conversation exists with conversation_id {conversation_id}", __name__)
+        return None
 
-def delete_conversation(user_id, conversation_id):
+def delete_conversation(conversation_id: str) -> str:
+    """
+    Deletes a conversation by the conversation_id.
+
+    Args
+        conversation_id: the unique id for the conversation requested to be deleted
+            str
+    Return
+        status: confirmation string that conversation corresponding to the conversation_id is deleted
+            str
+
+    """
+    
+    user_id = extract_user_id_from_other_id(conversation_id)
+    
     if not user_id or not conversation_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
+        logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
+        return {"error": "Missing user_id or conversation_id"}, 400
 
     db.collection("users").document(user_id).collection("conversations").document(conversation_id).delete()
-    return {"status": "conversation deleted"}
+    return {f"status: conversation_id {conversation_id} deleted"}
 
 def get_conversations(user_id, filters=None):
     """
@@ -87,22 +127,31 @@ def get_conversations(user_id, filters=None):
      2. date_from: searches for conversations created after this date
      3. date_to: searches for conversations created before this date
      4. connection_id: searches for conversations with this connection_id
+
+    Args
+        user_id: user_id associated with the conversations being searched/sorted
+            str
+        filters: dict object of the search/sort criteria
+
+    Return
+        List of conversation previews: Returns a list of conversation previews matching the search/sort criteria, grouped by connection_id
+            List[dict]
     
     """
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return f"error - [{err_point}] - Error:", 400
+        logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
+        return {"error": "Missing user_id or conversation_id"}, 400
 
     try:
         ref = db.collection("users").document(user_id).collection("conversations")
 
-        if filters:
-            keyword = filters.get("keyword", "").lower()
-            if "date_from" in filters:
-                ref = ref.where("created_at", ">=", filters["date_from"])
-            if "date_to" in filters:
-                ref = ref.where("created_at", "<=", filters["date_to"])
+        from_date = filters["date_from"] if filters["date_from"] else datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        to_date = filters["to_date"] if filters["to_date"] else date.today()
+        sort_order = filters.get("sort", "desc")
+
+        query = ref.where('created_at', '>=', from_date).where('created_at', '<=', to_date)
+        direct = firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING
+        query = query.order_by('created_at', direction=direct)
 
         convos = ref.stream()
         grouped = {}
@@ -129,6 +178,5 @@ def get_conversations(user_id, filters=None):
 
         return grouped
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
+        logger.error(f"[%s] Error: %s Failed to get conversations for user_id {user_id}", __name__, e)
+        raise ValueError(f"Failed to get conversations for user_id {user_id}: {e}")

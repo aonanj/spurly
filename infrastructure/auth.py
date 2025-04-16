@@ -1,24 +1,11 @@
-from functools import wraps
 from flask import request, jsonify, current_app, g
+from functools import wraps
+from logger import get_logger
 import jwt
-from .logger import get_logger
-from uuid import uuid4
 
 logger = get_logger(__name__)
 
-def generate_user_id() -> str:
-    """
-    Generates a 12-character string for ID of a new user. Adds "u" character prefix.
-    
-    Args
-        N/A
-    
-    Return
-        13-character user_id, beginning with "u"
-            str
 
-    """
-    return f"u{uuid4().hex[:12]}"
 
 def create_jwt(user_id:str) -> str:
     """

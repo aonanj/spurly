@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify, g, current_app
-from services.gpt_service import generate_spurs
-from services.connection_service import get_active_connection_firestore, get_user_connections
-from utils.middleware import enrich_context, validate_profile, sanitize_topic
 from infrastructure.auth import require_auth
+from infrastructure.id_generator import generate_conversation_id
 from infrastructure.logger import get_logger
-from uuid import uuid4
+from services.connection_service import get_active_connection_firestore, get_user_connections
+from services.gpt_service import generate_spurs
+from utils.middleware import enrich_context, validate_profile, sanitize_topic
 
 message_bp = Blueprint("message", __name__)
 logger = get_logger(__name__)
@@ -43,7 +43,7 @@ def generate():
             connection_profile = None
     
     if conversation and not conversation_id:
-        conversation_id = f"{user_id}:{uuid4().hex[:6]}"
+        conversation_id = generate_conversation_id(user_id)
     
     spurs, fallback_flags = generate_spurs(
         conversation_id=conversation_id,

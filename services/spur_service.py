@@ -1,27 +1,52 @@
+from class_defs.spur_def import Spur
+from flask import current_app
 from google.cloud import firestore
-from datetime import datetime 
-from gpt_training.anonymizer import anonymize_spur
 from infrastructure.clients import db
+from infrastructure.id_generator import extract_user_id_from_other_id
 from infrastructure.logger import get_logger
-
 
 logger = get_logger(__name__)
 
 def save_spur(user_id, spur):
     try:
         if not user_id:
-            err_point = __package__ or __name__
-            logger.error(f"error - {err_point} - No user_id in context")
-            return f"error - {err_point} - No user_id in context"
+            logger.error("Error: Missing user ID in save_spur")
+            raise ValueError("Error: Missing user ID in save_spur")
 
-        doc_ref = db.collection("users").document(user_id).collection("spurs").document()
-        doc_ref.set({
-            "text": spur.get("text", ""),
-            "variant": spur.get("variant", ""),
-            "situation": spur.get("situation", ""),
-            "date_saved": datetime.utcnow()
-        })
+        if not spur or not isinstance(spur, Spur):
+            logger.error("Error: Missing user ID in save_spur")
+            raise ValueError("Error: Missing user ID in save_spur")
 
+        user_id = spur.get("user_id", "")
+        spur_id = spur.get("spur_id", "")
+        conversation_id = spur.get("conversation_id", "")
+        connection_id = spur.get("connection_id", "")
+        situation = spur.get("situation", "")
+        topic = spur.get("topic","")
+        variant = spur.get("varint", "")
+        tone = spur.get("tone", "")
+        text = spur.get("text", "")
+        created_at = spur.get("created_at", None)
+        
+        
+        
+
+        doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
+        doc_data = {
+            "user_id": user_id,
+            "spur_id": spur,
+            "conversation_id": conversation_id,
+            "connection_id": connection_id,
+            "situation": situation,
+            "topic": topic,
+            "variant": variant,
+            "tone": tone,
+            "text": text,
+            "created_at": created_at
+            }
+
+        doc_ref.set(doc_data)
+        
         return {"status": "spur saved", "spur_id": doc_ref.id}
     except Exception as e:
         err_point = __package__ or __name__
@@ -89,14 +114,17 @@ def delete_saved_spur(user_id, spur_id):
         logger.error("[%s] Error: %s", err_point, e)
         return f"error - {err_point} - Error: {str(e)}", 500
 
-def get_spur(user_id, spur_id):
+def get_spur(spur_id: str) -> Spur:
+    
+    user_id = extract_user_id_from_other_id(spur_id)
     if not user_id or not spur_id:
         return {"error": "Missing user_id or spur_id"}, 400
 
     doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
     doc = doc_ref.get()
     if doc.exists:
-        return doc.to_dict()
+        spur = Spur.from_dic(doc)
+        return spur
     else:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")

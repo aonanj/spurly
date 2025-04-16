@@ -1,8 +1,8 @@
-import openai
-import json
+from flask import current_app
 from infrastructure.clients import chat_client
 from infrastructure.logger import get_logger
-from flask import current_app
+import json
+import openai
 
 logger = get_logger(__name__)
 

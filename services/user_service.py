@@ -1,10 +1,9 @@
-from infrastructure.clients import db
-from flask import jsonify, current_app
-from firebase_admin import auth
-from infrastructure.logger import get_logger
 from class_defs.profile_def import UserProfile
-from class_defs.spur_def import Spur
 from dataclasses import fields
+from firebase_admin import auth
+from flask import jsonify, current_app
+from infrastructure.clients import db
+from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
 default_log_level = current_app.config['DEFAULT_LOG_LEVEL']

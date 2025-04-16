@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify, g
 from datetime import datetime
+from flask import Blueprint, request, jsonify, g
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
+from services.spur_service import get_spur
 
 from services.storage_service import (
     get_saved_spurs,

@@ -1,8 +1,8 @@
-from functools import wraps
 from flask import request, jsonify
-import utils.trait_manager as trait_manager
-from .moderation import moderate_topic
+from functools import wraps
 from infrastructure.logger import get_logger
+from moderation import moderate_topic
+import utils.trait_manager as trait_manager
 
 logger = get_logger(__name__)
 

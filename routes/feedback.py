@@ -1,9 +1,9 @@
-from flask import Blueprint, request, jsonify
-from services.storage_service import save_feedback
 from class_defs.spur_def import Spur
+from flask import Blueprint, request, jsonify
 from gpt_training.anonymizer import anonymize_spur
-from services.storage_service import save_training_spur, save_user_saved_spur
 from infrastructure.auth import require_auth
+from services.storage_service import save_feedback
+from services.storage_service import save_training_spur, save_user_saved_spur
 
 feedback_bp = Blueprint("feedback", __name__)
 
@@ -21,12 +21,11 @@ def feedback():
     result = save_feedback(data)  # Save raw feedback record
 
     spur_obj = Spur.from_dict(spur)
-    anonymized_spur = anonymize_spur(spur_obj)
 
     if feedback_type == "thumbs_up":
         save_user_saved_spur(user_id, spur_obj)
-        save_training_spur(anonymized_spur, category="positive")
+        anonymize_spur(spur_obj, True)
     elif feedback_type == "thumbs_down":
-        save_training_spur(anonymized_spur, category="negative")
+        anonymize_spur(spur_obj, False)
 
     return jsonify(result)

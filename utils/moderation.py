@@ -1,7 +1,7 @@
-import re
-import openai
 from infrastructure.clients import mod_client
 from infrastructure.logger import get_logger
+import openai
+import re
 
 logger = get_logger(__name__)
 

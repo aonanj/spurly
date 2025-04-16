@@ -1,55 +1,61 @@
-from datetime import datetime
-from uuid import uuid4
-from infrastructure.clients import db
-from infrastructure.logger import get_logger
-from flask import current_app
 from class_defs.conversation_def import Conversation
+from class_defs.spur_def import Spur
+from datetime import datetime
+from flask import current_app
+from infrastructure.clients import db
+from infrastructure.id_generator import generate_anonymous_user_id, generate_anonymous_conversation_id, generate_anonymous_connection_id, generate_anonymous_spur_id
+from infrastructure.logger import get_logger
+from services.connection_service import get_connection_profile
+from services.user_service import get_user_profile
 
 logger = get_logger(__name__)
 
-def anonymize_conversation(convo, user_profile=None, connection_profile=None, situation="", topic=""):
+def anonymize_conversation(original_conversation: Conversation) -> str:
     """
     Replaces speaker labels with generic gender-based labels when available,
     or falls back to 'Person A' and 'Person B' for user and connection respectively.
     Maintains message order and speaker attribution.
 
     Args:
-        Convo (list[dict]): List of dictionaries (messages) in the conversation. JSON format.
-        user_profile (dict): User profile containing user information.
-        connection_profile (dict): connection profile containing connection information.
-        situation (str): Situation description.
-        topic (str): Topic description.
+        original_conversation: Conversation object including the conversation data to be anonymized
+            Conversation
 
     Returns:
-        True if anonymoized conversation is saved.
+        status: string indicating success of anonymizing and saving original_conversation.
+            str
     """
     try:
-        if not convo or not isinstance(convo, list):
-            logger.error("Invalid conversation format. List of messages expected.")
-            raise TypeError("Invalid conversation format. List of messages expected.")
-        elif user_profile is None or not isinstance(user_profile, dict):
-            logger.error("Invalid user profile format. Dictionary expected.")
-            raise TypeError("Invalid user profile format. Dictionary expected.")
-        elif connection_profile is None or not isinstance(connection_profile, dict):
-            logger.error("Invalid connection profile format. Dictionary expected.")   
-            raise TypeError("Invalid connection profile format. Dictionary expected.")   
+        if not original_conversation or not isinstance(original_conversation, Conversation):
+            logger.error("Invalid conversation format. Conversation object expected.")
+            raise TypeError("Invalid conversation format. Conversation object expected.")
 
-        if not all("text" in message and "speaker" in message for message in convo):
+        conversation_dict = original_conversation.to_dict()
+        conversation_messages = Conversation.from_dict(conversation_dict)
+        
+        user_id = original_conversation.get("user_id", "")
+        user_profile = get_user_profile(user_id)
+        user_gender = user_profile.get("gender", "")
+
+        connection_id = original_conversation.get("connection_id", "")
+        connection_profile = get_connection_profile(connection_id)
+        connection_gender = connection_profile.get("gender")
+        
+        if not all("text" in message and "speaker" in message for message in conversation_messages):
             logger.error("Invalid conversation format. Keys 'text' and 'speaker' expected.")
             raise ValueError("Invalid conversation format. Keys 'text' and 'speaker' expected.")
         
-        if not isinstance(user_profile.get("gender"), str):
+        if not isinstance(user_gender, str) or user_gender == "":
             user_label = "Person A"
         else:
-            user_label = f"{user_profile.get('gender').capitalize()} Speaker"
+            user_label = f"(1) {user_gender.capitalize()} Speaker"
 
         if not isinstance(connection_profile.get("gender"), str):
             connection_label = "Person B"
         else:
-            connection_label = f"{connection_profile.get('gender').capitalize()} Speaker"
+            connection_label = f"(2) {connection_gender.capitalize()} Speaker"
 
         anonymized_messages = []
-        for message in convo:
+        for message in conversation_messages:
             original_speaker = message.get("speaker", "").lower()
             text = message.get("text", "")
 
@@ -64,38 +70,128 @@ def anonymize_conversation(convo, user_profile=None, connection_profile=None, si
                 "speaker": speaker_label,
                 "text": text
             })
-        save_anonymized_conversation(anonymized_messages, situation, topic)
+            
+            anonymous_user_id = generate_anonymous_user_id()
+            anonymous_conversation_id = generate_anonymous_conversation_id(anonymous_user_id)
+            anonymous_connection_id = generate_anonymous_connection_id(anonymous_user_id)
+            situation = conversation_dict.get("situation", "")
+            topic = conversation_dict.get("topic", "")
+            spurs = conversation_dict.get("spurs", None)
+            created_at = conversation_dict.get("created_at", None)
+
+            
+            anonymized_conversation = Conversation(
+                user_id=anonymous_user_id,
+                conversation_id=anonymous_conversation_id,
+                conversation=anonymized_messages,
+                connection_id=anonymous_connection_id,
+                situation=situation,
+                topic=topic,
+                spurs=spurs,
+                created_at=created_at
+            )
+        save_anonymized_conversation(anonymized_conversation)
+        return (f"Conversation successfully anonymized with anonymized_conversation_id: {anonymous_conversation_id}")
+
     except Exception as e:
         logger.error("[%s] Error: %s Anonymizing conversation failed", __name__, e)
         raise ValueError(f"Anonymizing conversation failed: {e}") from e
 
-    return True
-
-def save_anonymized_conversation(convo, situation="", topic=""):
+def save_anonymized_conversation(anonymized_conversation: Conversation) -> bool:
     """
     Saves an anonymized conversation for training the AI model underlying the app.
 
     Args:
-        Convo (list[dict]): List of dictionaries (messages) in the conversation. JSON format.
-        situation (str): Situation description.
-        topic (str): Topic description.
+        anonymized_conversation: Conversation object including the anonymized conversation data to be saved
+            Conversation
 
     Returns:
-        True if anonymoized conversation is saved.
+        status: string indicating success of anonymizing and saving original_conversation.
+            str
     """
     
-    anonymized_conversation_id = str(f"ac{uuid4().hex[:12]}")
+    anonymized_conversation_dict = Conversation.to_dict(anonymized_conversation)
+    anonymized_conversation_id = anonymized_conversation_dict.get("conversation_id", generate_anonymous_conversation_id(None))
+    
     try:
-        training_ref = db.collection("training").document("conversations").collection("batch").document()
+        training_ref = db.collection("training").document("conversations").collection("batch").document(anonymized_conversation_id)
         
-        training_ref.set({
-            "anonymized_conversation_id": anonymized_conversation_id,
-            "anonymized_conversation": convo,
-            "situation": situation,
-            "topic": topic,
-            "created_at": datetime.utcnow(),
-        })
-        return True
+        training_ref.set(anonymized_conversation_dict)
+        return (f"Anonymized conversation successfully anonymized with id: {anonymized_conversation_id}")
     except Exception as e:
         logger.error("[%s] Error: %s Save anonymized conversation failed", __name__, e)
         raise ValueError(f"Save anonymized conversation failed: {e}") from e
+
+def anonymize_spur(original_spur: Spur, is_quality_spur: bool)->str:
+    """
+    Anonymizes a spur to use as training data. user_id, spur_id, conversation_id, connection_id, and created_at are replaced with generic values.
+
+    Args:
+        original_spur: spur to be anonymized.
+            Spur object
+        is_quality_spur: indicates whether original_spur received positive feedback or negative feedback.
+            bool
+        
+    Returns
+        status: string indicating success of anonymizing and saving original_spur.
+            str
+
+    """
+    try:
+        if not Spur or not isinstance(original_spur, Spur):
+            logger.error("Invalid spur. Cannot anonymize spur. No spur data saved.")
+
+        spur_dict = Spur.to_dict(original_spur)
+        
+        anonymous_user_id = generate_anonymous_user_id()
+        anonymous_spur_id = generate_anonymous_spur_id(anonymous_user_id)
+        anonymous_conversation_id = generate_anonymous_conversation_id(anonymous_user_id)
+        anonymous_connection_id = generate_anonymous_connection_id(anonymous_user_id)
+        
+        spur_dict['user_id'] = anonymous_user_id
+        spur_dict['spur_id'] = anonymous_spur_id
+        spur_dict['connection_id'] = anonymous_connection_id
+        spur_dict['conversation_id'] = anonymous_conversation_id
+        spur_dict['created_at'] = datetime.utcnow()
+        
+        save_anonymized_spur(Spur.from_dict(spur_dict), is_quality_spur)
+
+        return (f"Spur successfully anonymized with ID: {anonymous_spur_id}")
+
+    except Exception as e:
+        logger.error("[%s] Error: %s Anonymizing spur failed", __name__, e)
+        raise ValueError(f"Anonymizing spur failed: {e}") from e
+
+
+def save_anonymized_spur(anonymized_spur: Spur, is_quality_spur) -> str:
+    """
+    Saves an anonymized spur for training the AI model underlying the app.
+
+    Args:
+        anonymized_spur: anonymized spur
+            Spur
+        is_quality_spur: indicates whether original_spur received positive feedback or negative feedback.
+            bool
+            
+
+    Returns:
+        status: string indicating success of saving anonymized_spur.
+            str
+    """
+
+    anonymized_spur_dict = Spur.from_dict(anonymized_spur)
+    anonymized_spur_id = anonymized_spur_dict.get("spur_id", generate_anonymous_spur_id(None))
+    try:
+        if is_quality_spur:
+            training_ref = db.collection("training").document("quality_spurs").collection("batch").document(anonymized_spur_id)
+            training_ref.set(anonymized_spur_dict)
+        elif not is_quality_spur:
+            training_ref = db.collection("training").document("bad_spurs").collection("batch").document(anonymized_spur_id)
+            training_ref.set(anonymized_spur_dict)
+
+        
+        
+        return (f"Anonymized spur successfully saved as anonymized_spur_id: {anonymized_spur_id}")
+    except Exception as e:
+        logger.error("[%s] Error: %s Save anonymized spur failed", __name__, e)
+        raise ValueError(f"Save anonymized spur failed: {e}") from e

@@ -1,5 +1,5 @@
-from flask import current_app
 from class_defs.spur_def import Spur
+from flask import current_app
 
 def validate_and_normalize_output(spur_dict):
     """

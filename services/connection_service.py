@@ -1,10 +1,9 @@
-from infrastructure.clients import db
-from uuid import uuid4
-from flask import current_app
-from infrastructure.logger import get_logger
-from flask import jsonify
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
+from flask import current_app
+from flask import jsonify
+from infrastructure.clients import db
+from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -16,8 +15,8 @@ def create_connection_profile(data):
         return False
 
     profile = ConnectionProfile.from_dict(data)
-    short_id = str(uuid4().hex[:5])
-    connection_id = f"{user_id}:{short_id}"
+    connection_id = connection_id(user_id)
+    
     profile_data = profile.to_dict()
     profile_data["connection_id"] = connection_id
 
@@ -84,9 +83,7 @@ def save_connection_profile(data):
 
 def get_user_connections(user_id):
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+        logger.error(f"Error: Missing user_id in get_user_connections")
 
     try:
         connections_ref = db.collection("users").document(user_id).collection("connections")

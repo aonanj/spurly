@@ -1,5 +1,5 @@
-import os
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
@@ -38,8 +38,14 @@ class Config:
 
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week
 
-    NULL_CONNECTION_ID = "generic_connection_id"
+    ID_DELIMITER = ":"    
+    ANONYMOUS_ID_INDICATOR = "a"
+    USER_ID_INDICATOR = "u"
+    CONVERSATION_ID_INDICATOR = "c"   
+    CONNECTION_ID_INDICATOR = "p"
+    SPUR_ID_INDICATOR = "s"
     
+
     LOGGER_LEVEL = os.environ.get("LOGGER_LEVEL", "INFO")
     
     AI_MODEL = os.environ.get("GPT_MODEL_NAME", "gpt-4")

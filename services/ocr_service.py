@@ -1,10 +1,10 @@
+from flask import jsonify
 from google.cloud import vision
-import cv2
-import numpy as np
-from flask import jsonify, current_app
-from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
 from infrastructure.clients import vision_client
 from infrastructure.logger import get_logger
+from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
+import cv2
+import numpy as np
 
 client = vision_client
 logger = get_logger(__name__)

@@ -1,12 +1,12 @@
 from flask import Blueprint, request, jsonify
-from services.connection_service import get_connection_profile
+from infrastructure.auth import require_auth
 from infrastructure.context import (
     set_current_connection,
     get_current_connection,
     clear_current_connection,
     get_current_user
 )
-from infrastructure.auth import require_auth
+from services.connection_service import get_connection_profile
 
 context_bp = Blueprint("context", __name__)
 

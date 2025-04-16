@@ -1,18 +1,17 @@
-import openai
-from utils.gpt_output import parse_gpt_output
-from utils.prompt_template import build_prompt
-from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
-from utils.trait_manager import infer_tone, infer_situation
-from infrastructure.clients import chat_client
-from flask import current_app
-from infrastructure.logger import get_logger
 from class_defs.spur_def import Spur
 from datetime import datetime
-from uuid import uuid4
-from services.user_service import get_user_profile
+from flask import current_app
+from infrastructure.clients import chat_client
+from infrastructure.id_generator import generate_spur_id
+from infrastructure.logger import get_logger
 from services.connection_service import get_connection_profile
 from services.storage_service import get_conversation
 from services.user_service import get_user_profile
+from utils.gpt_output import parse_gpt_output
+from utils.prompt_template import build_prompt
+from utils.trait_manager import infer_tone, infer_situation
+from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
+import openai
 
 logger = get_logger(__name__)
 
@@ -100,16 +99,15 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
             
             user_id = user_profile["user_id"]
 
-            spur_id_base = str(uuid4().hex[:7])
             spur_objects = []
             variant_keys = current_app.config['SPUR_VARIANT_ID_KEYS']
 
-            for key, suffix in variant_keys.items():
+            for key in variant_keys.items():
                 spur_text = validated_output(key)
                 if spur_text:
                     spur_objects.append(Spur(
                         user_id=user_profile.get("user_id", ""),
-                        spur_id=f"{user_id}:{spur_id_base}{suffix}",
+                        spur_id=generate_spur_id(user_id),
                         conversation_id=conversation.get("conversation_id", ""),
                         connection_id=connection_profile.get("connection_id", ""),
                         situation=situation or "",

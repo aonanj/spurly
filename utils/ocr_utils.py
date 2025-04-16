@@ -1,8 +1,8 @@
+from infrastructure.logger import get_logger
+from typing import Any, Union, Dict
 import cv2
 import numpy as np
 import re
-from infrastructure.logger import get_logger
-from typing import Any, Union, Dict
 
 logger = get_logger(__name__)
 

@@ -1,4 +1,6 @@
 from flask import Blueprint, request, jsonify, g, current_app
+from infrastructure.auth import require_auth
+from infrastructure.logger import get_logger
 from services.connection_service import (
      save_connection_profile,
      get_user_connections,
@@ -10,8 +12,6 @@ from services.connection_service import (
      update_connection_profile,
      delete_connection_profile,
 )
-from infrastructure.auth import require_auth
-from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
 

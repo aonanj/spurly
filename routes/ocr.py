@@ -1,10 +1,10 @@
-from flask import Blueprint, request, jsonify, current_app
-from services.ocr_service import process_image
-from infrastructure.auth import require_auth
-from infrastructure.logger import get_logger
 from class_defs.conversation_def import Conversation
-from uuid import uuid4
 from datetime import datetime
+from flask import Blueprint, request, jsonify, current_app
+from infrastructure.auth import require_auth
+from infrastructure.id_generator import generate_generic_connection_id, generate_conversation_id
+from infrastructure.logger import get_logger
+from services.ocr_service import process_image
 
 ocr_bp = Blueprint("ocr", __name__)
 logger = get_logger(__name__)
@@ -24,20 +24,18 @@ def upload_image():
     connection_id = request.headers.get("connection_id", None)
     situation = request.form.get("situation", "").strip()
     topic = request.form.get("topic", "").strip()
-    conversation_id=request.form.get("conversation_id", None), 
     
-    connection_id_stub = current_app.config['NULL_CONNECTION_ID']
+    
     if not connection_id:
-        connection_id = f"{user_id}:{connection_id_stub}"
+        connection_id = generate_generic_connection_id
     
     connection_id.strip()
     
     ocr_marker = current_app.config['OCR_MARKER']
     conversation_id = request.form.get("conversation_id")
     if not conversation_id:
-        conversation_id = f"{user_id}:{uuid4().hex[:6]}"
-    elif conversation_id.startswith(":") and conversation_id.endswith(ocr_marker):
-        conversation_id = f"{user_id}{conversation_id}"
+        generate_conversation_id(user_id)
+
     
     conversation_msgs = {}    
     

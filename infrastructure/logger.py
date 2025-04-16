@@ -1,10 +1,18 @@
 import logging
 import sys
-from flask import current_app
 
 _loggers = {}
 
 def setup_logger(name="spurly", level=logging.INFO, toFile=False, fileName="spurly.log"):
+    """
+    Establish an instance of a logger to be used for logging in current context of app
+
+    Args
+        name: name of the logger
+        level: level of logging info
+        toFile: 
+
+    """
     if name in _loggers:
         return _loggers[name]
 

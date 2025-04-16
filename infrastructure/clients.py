@@ -1,11 +1,11 @@
+from firebase_admin import credentials, firestore
+from flask import current_app
 from google.cloud import firestore
 from google.cloud import vision
 from google.oauth2 import service_account
-import openai
-from flask import current_app
-import firebase_admin
-from firebase_admin import credentials, firestore
 from infrastructure.logger import get_logger
+import firebase_admin
+import openai
 
 
 db = None
