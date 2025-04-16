@@ -3,19 +3,29 @@ from dataclasses import fields
 from flask import current_app
 from flask import jsonify
 from infrastructure.clients import db
+from infrastructure.id_generator import generate_connection_id, get_null_connection_id
 from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
 
-def create_connection_profile(data):
+def create_connection_profile(data: dict) -> dict:
+    """
+    Creates a ConnectionProfile with data received from the frontend.
+
+    Args:
+        data: Dictionary representation of the connection information 
+            dict
+
+    Returns:
+        status: status of creating a connection profile.
+    """
     user_id = data.get("user_id")
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return False
+        logger.error("Error: Cannot create connection profile - missing user ID")
+        raise TypeError("Error: Cannot create connection profile - missing user ID")
 
     profile = ConnectionProfile.from_dict(data)
-    connection_id = connection_id(user_id)
+    connection_id = generate_connection_id(user_id)
     
     profile_data = profile.to_dict()
     profile_data["connection_id"] = connection_id
@@ -28,11 +38,10 @@ def create_connection_profile(data):
             "connection_profile": format_connection_profile(connection_id, profile_data)
         }
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return False
+        logger.error("[%s] Error: %s", "cannot create connection profile", e)
+        return jsonify({"error": f"cannot create connection profile: {str(e)}"}), 500
 
-def format_connection_profile(connection_id, profile_data):
+def format_connection_profile(connection_id: str, profile_data: dict) -> str:
     """
     Converts a ConnectionProfile object into a formatted string for human-readable display.
 
@@ -63,27 +72,47 @@ def format_connection_profile(connection_id, profile_data):
 
     return "\n".join(lines)
 
-def save_connection_profile(data):
-    user_id = data.get("user_id")
-    connection_id = data.get("connection_id")
-    if not user_id or not connection_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+def save_connection_profile(connection_profile: ConnectionProfile) -> dict:
+    """
+    Saves the profile of a connection 
 
-    profile = ConnectionProfile.from_dict(data)
-    profile_data = profile.to_dict()
+    Args
+        data: profile data to be saved for a connection
+            dict
+    Return
+        status: status indicating whether connection profile is saved
+            dict
+    """
+    user_id = connection_profile.get("user_id")
+    connection_id = connection_profile.get("connection_id")
+    if not connection_profile or not user_id or not connection_id or connection_id.endswith(current_app.config['NULL_CONNECTION_ID']):
+        logger.error("Error: Cannot save connection profile - missing user ID or connection ID")
+        raise TypeError("Error: Cannot save connection profile - missing user ID or connection ID")
+
+    profile_data = connection_profile.to_dict()
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data)
         return {"status": "connection profile saved"}
     except Exception as e:
         err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
+        logger.error("[%s] Error saving connection profile:  %s", err_point, e)
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
-def get_user_connections(user_id):
+def get_user_connections(user_id:str) -> list:
+    """
+    Gets the connections associated with the user_id
+
+    Args
+        user_id: User ID
+            str
+
+    Return
+        connections: List of connections associated with the user_id
+            List[ConnectionProfile]
+    """
     if not user_id:
-        logger.error(f"Error: Missing user_id in get_user_connections")
+        logger.error("Error: Cannot get connections - missing user ID")
+        raise TypeError("Error: Cannot get connections - missing user ID")
 
     try:
         connections_ref = db.collection("users").document(user_id).collection("connections")
@@ -92,7 +121,7 @@ def get_user_connections(user_id):
         for connection in connections:
             connection_data = connection.to_dict()
             profile = ConnectionProfile.from_dict(connection_data)
-            connection_list.append(profile.to_dict())
+            connection_list.append(profile)
 
         return {"connections": connection_list}
     except Exception as e:
@@ -100,25 +129,58 @@ def get_user_connections(user_id):
         logger.error("[%s] Error: %s", err_point, e)
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
-def set_active_connection_firestore(user_id, connection_id):
+def set_active_connection_firestore(user_id: str, connection_id: str) -> dict:
+    """
+    Sets the connection id of the connection that is active in the context
+
+    Args
+        user_id: User ID
+            str
+        connection_id: Connection ID of active connection
+            str
+    Return
+        status: status indicating connection ID is set as active
+            dict
+    """
+    if not user_id:
+        logger.error("Error: Cannot set active connection - missing user ID")
+        raise TypeError("Error: Cannot set active connection - missing user ID")
+    if not connection_id:
+        logger.log(current_app.config['DEFAULT_LOG_LEVEL'], "Null connection active in context")
+        connection_id = get_null_connection_id(user_id)
     try:
         db.collection("users").document(user_id).collection("settings").document("active_connection").set({
             "connection_id": connection_id
         })
         return {"status": "active connection set", "connection_id": connection_id}
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+        logger.error(f"Error: Cannot set active connection - {e}")
+        return {"Error": str(e)}, 500
 
-def get_active_connection_firestore(user_id):
+
+def get_active_connection_firestore(user_id: str) -> str:
+    """
+    Gets the connection id of the connection that is active in the context
+
+    Args
+        user_id: User ID
+            str
+
+    Return
+        connection_id: Connection ID of active connection
+            str
+    """
+    if not user_id:
+        logger.error("Error: Cannot get active connection - missing user ID")
+        raise TypeError("Error: Cannot get active connection - missing user ID")
+    
     try:
         doc_ref = db.collection("users").document(user_id).collection("settings").document("active_connection")
         doc = doc_ref.get()
         if doc.exists:
             return {"active_connection_id": doc.to_dict().get("connection_id")}
         else:
-            active_connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
+            active_connection_id = get_null_connection_id(user_id)
             set_active_connection_firestore(user_id, active_connection_id)
             return active_connection_id
     except Exception as e:
@@ -126,63 +188,108 @@ def get_active_connection_firestore(user_id):
         logger.error("[%s] Error: %s", err_point, e)
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
-def clear_active_connection_firestore(user_id):
+def clear_active_connection_firestore(user_id: str) -> dict:
+    """
+    Clears the connection id of the connection that is active in the context
+
+    Args
+        user_id: User ID
+            str
+    Return
+        status: status indicating connection ID is set as active
+            dict
+    """
+    if not user_id:
+        logger.error("Error: Cannot clear active connection - missing user ID")
+        raise TypeError("Error: Cannot clear active connection - missing user ID")
+    
     try:
         db.collection("users").document(user_id).collection("settings").document("active_connection").delete()
         
-        active_connection = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
-        set_active_connection_firestore(user_id, active_connection)
+        active_connection_id = get_null_connection_id(user_id)
+        set_active_connection_firestore(user_id, active_connection_id)
         return {"status": "active connection cleared"}
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+        return {'error': {str(e)}}, 500
 
-def get_connection_profile(user_id, connection_id):
-    if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
-    if not connection_id:
-        connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
-        return None
+def get_connection_profile(user_id: str, connection_id: str) -> ConnectionProfile:
+    """
+    Gets the connection profile corresponding to the connection_id
+
+    Args
+        user_id: User ID
+            str
+        connection_id: Connection ID corresponding to the profile
+            str
+    Return
+        connection_profile: profile of the connection corresponding to the connection_id
+            ConnectionProfile
+
+    """
+    if not user_id or not connection_id or connection_id.endswith(current_app.config['NULL_CONNECTION_ID']):
+        logger.error("Error: Cannot get connection profile - missing user ID or connection ID")
+        raise TypeError("Error: Cannot get connection profile - missing user ID or connection ID")
     try:
         doc = db.collection("users").document(user_id).collection("connections").document(connection_id).get()
         if doc.exists:
             connection_data = doc.to_dict()
             profile = ConnectionProfile.from_dict(connection_data)
-            return profile.to_dict()
+            return profile
         else:
-            err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
-            return jsonify({'error': f"[{err_point}] - Error:"}), 404
+            logger.error(f"Error: Cannot get connection profile")
+            return {"error": "cannot get connection profile"}, 404
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
-
-def update_connection_profile(user_id, connection_id, data):
-    generic_connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
-    if not user_id or connection_id.casefold() != generic_connection_id.casefold():
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
-    try:
-        db.collection("users").document(user_id).collection("connections").document(connection_id).update(data)
-        return {"status": "connection profile updated"}
-    except Exception as e:
+        logger.error("[%s] Error: %s", "cannot get connection profile", e)
         return {"error": str(e)}, 500
 
-def delete_connection_profile(user_id, connection_id):
-    generic_connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
-    if not user_id or connection_id.casefold() == generic_connection_id.casefold():
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+def update_connection_profile(user_id, connection_id, data) -> dict:
+    """
+    Updates the profile of a connection with data
+
+    Args
+        user_id: User ID
+            str
+        connection_id: Connection ID
+            str
+        data: Data to add to profile corresponding to connection ID
+            dict
+    Return
+        status: status indicating whether connection profile is updated
+            dict
+    """
+
+    if not user_id or not connection_id or connection_id.endswith(current_app.config['NULL_CONNECTION_ID']):
+        logger.error("Error: Cannot update connection profile - missing user ID or connection ID")
+        raise TypeError("Error: Cannot update connection profile - missing user ID or connection ID")
+    else:
+        try:
+            db.collection("users").document(user_id).collection("connections").document(connection_id).update(data)
+            return {"status": "connection profile updated"}
+        except Exception as e:
+            logger.error(f"Error: Cannot update connection profile - {e}")
+            return {"error": str(e)}, 500
+
+def delete_connection_profile(user_id: str, connection_id:str) -> dict:
+    """
+    Deletes the profile of a connection 
+
+    Args
+        user_id: User ID
+            str
+        connection_id: Connection ID of profile to be deleted
+            str
+    Return
+        status: status indicating whether connection profile is deleted
+            dict
+    """
+    if not user_id or not connection_id or connection_id.endswith(current_app.config['NULL_CONNECTION_ID']):
+        logger.error("Error: Cannot delete connection profile - missing user ID or connection ID")
+        raise TypeError("Error: Cannot delete connection profile - missing user ID or connection ID")
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).delete()
         return {"status": "connection profile deleted"}
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+        logger.error(f"Error: Cannot delete connection profile - {e}")
+        return {"error": str(e)}, 500

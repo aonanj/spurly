@@ -109,6 +109,26 @@ def generate_connection_id(user_id="") -> str:
 		logger.error("Error: Missing user_id for connection_id generation")		 
 		return (f":{connection_id_stub}:{connection_id_indicator}").lower()
 
+
+def get_null_connection_id(user_id="") -> str:
+	"""
+	Generates a string for ID when no connection is loaded in context (i.e., null connection). User ID associated with the connection is prepended, connection_id_indicator is appended, null_connection_indicator is appended
+
+	Args
+		user_id: User ID associated with the connection
+			str
+
+	Return
+		connection_id: Connection ID, beginning with "u:" and ending with ":p"
+			str
+	"""
+	null_connection_id = current_app.config['NULL_CONNECTION_ID']
+	if user_id:
+		return (f"{user_id}:{null_connection_id}").lower()
+	elif not user_id:
+		logger.error("Error: Missing user_id for connection_id generation")		 
+		return null_connection_id.lower()
+
 def generate_anonymous_spur_id(anonymous_user_id) -> str:
 	"""
 	Generates a generic spur ID for objects to be used as training data. Appends anonymous indicator.

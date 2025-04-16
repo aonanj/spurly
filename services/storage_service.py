@@ -26,23 +26,19 @@ def save_conversation(data: Conversation) -> str:
 
     """
 
-    user_id = extract_user_id_from_other_id(conversation_id)
-
-    if not user_id or not conversation_id:
-        logger.error("Error: Failed to save conversation - missing user_id or conversation_id ", __name__)
-        return {"error": "Missing user_id or conversation_id"}, 400
-
+    user_id = data.get("user_id", None)
     connection_id = data.get("connection_id", None)
     
-    conversation_id = data.get("conversation_id")
+    if not user_id:
+        logger.error("Error: Failed to save conversation - missing user_id", __name__)
+        return {"error": "Missing user_ids"}, 400
 
     if not conversation_id:
         conversation_id = generate_conversation_id(user_id)
     elif conversation_id.startswith(":"):
         conversation_id = f"{user_id}{conversation_id}"
     else:
-        conversation_id_indicator = current_app.config['CONVERSATION_ID_INDICATOR']
-        conversation_id = f"{user_id}:{str(uuid4().hex[:6])}:{conversation_id_indicator}"
+        conversation_id = generate_conversation_id(user_id)
         
     spurs = data.get("spurs", None)
     situation = data.get("situation", "")
@@ -120,6 +116,7 @@ def delete_conversation(conversation_id: str) -> str:
     db.collection("users").document(user_id).collection("conversations").document(conversation_id).delete()
     return {f"status: conversation_id {conversation_id} deleted"}
 
+## TODO: Need to refactor the keyword search using Firebase, Vertex AI, Firestore.
 def get_conversations(user_id, filters=None):
     """
     searches for conversations based on filters. searches all of situation, topic, and conversation text.
@@ -155,7 +152,7 @@ def get_conversations(user_id, filters=None):
 
         convos = ref.stream()
         grouped = {}
-
+        keyword = filters["keyword"]
         for convo in convos:
             data = convo.to_dict()
             connection_id = data.get("connection_id", "(none)")

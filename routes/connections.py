@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, g, current_app
 from infrastructure.auth import require_auth
+from infrastructure.id_generator import get_null_connection_id
 from infrastructure.logger import get_logger
 from services.connection_service import (
      save_connection_profile,
@@ -39,7 +40,7 @@ def set_active_connection():
     if data.get("connection_id"):
         connection_id = data["connection_id"]
     else:
-        connection_id = f"{user_id}:{current_app.config['NULL_CONNECTION_ID']}"
+        connection_id = get_null_connection_id(user_id)
 
     if not user_id or not connection_id:
         err_point = __package__ or __name__

@@ -8,6 +8,7 @@ from services.connection_service import get_connection_profile
 from services.storage_service import get_conversation
 from services.user_service import get_user_profile
 from utils.gpt_output import parse_gpt_output
+from utils.prompt_loader import load_system_prompt
 from utils.prompt_template import build_prompt
 from utils.trait_manager import infer_tone, infer_situation
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
@@ -15,7 +16,7 @@ import openai
 
 logger = get_logger(__name__)
 
-def merge_spurs(original_spurs, regenerated_spurs):
+def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
     """
     Replaces spurs in original_spurs with those in regenerated_spurs that share the same variant.
 
@@ -38,7 +39,7 @@ def merge_spurs(original_spurs, regenerated_spurs):
     return merged_spurs
 
 
-def generate_spurs(user_profile, selected_spurs, connection_profile=None, conversation=None, situation="", topic="") -> dict:
+def generate_spurs(user_profile, selected_spurs, connection_profile=None, conversation=None, situation="", topic="") -> list:
     """
     Generates spur responses based on the provided conversation context and profiles.
     
@@ -85,10 +86,14 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
-
-            response = chat_client.completions.create(
+            system_prompt = load_system_prompt()
+            
+            response = chat_client.ChatCompletion.create(
                 model=current_app.config['AI_MODEL'],
-                messages=[{"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": current_prompt}],
+                messages=[
+                    {"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": system_prompt},
+                    {"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": current_prompt}
+                    ],
                 temperature=current_app.config['AI_TEMPERATURE_INITIAL'] if attempt == 0 else current_app.config['AI_TEMPERATURE_RETRY'],
                 max_tokens=current_app.config['AI_MAX_TOKENS'],
             )
@@ -127,20 +132,20 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
                 return fallback_response
             continue
 
-def get_spurs_for_output(user_id, conversation_id) -> dict:
+def get_spurs_for_output(user_id: str, conversation_id: str) -> list:
     """
         Gets spurs that are formatted and content-filtered to send to the frontend. 
         Iterative while loop structure regenerates spurs that fail content filtering
         
             **Args
                 user_id: user id in current context 
-                    (string)
+                    str
                 conversation_id: conversation id in current context
-                    (string)
+                    str
             **Return
-                Tuple[List[Spur], dict]: A tuple where the first element is a list of generated Spur objects and the second element is a dict of fallback flags or additional information.
+                List[Spur]: A list of generated Spur objects
     """ 
-    null_connection_suffix = current_app.config['NULL_CONNECTION_ID']
+    null_connection_id = current_app.config['NULL_CONNECTION_ID']
     connection_profile = None
     conversation = None
     situation = ""
@@ -149,7 +154,7 @@ def get_spurs_for_output(user_id, conversation_id) -> dict:
     user_profile = get_user_profile(user_id=user_id)
     conversation = get_conversation(conversation_id=conversation_id)    
     connection_id = conversation["connection_id"]
-    if connection_id and not connection_id.endswith(null_connection_suffix):
+    if connection_id and not connection_id.endswith(null_connection_id):
         connection_profile = get_connection_profile(connection_id=connection_id)
     
     situation = conversation["situation"]
@@ -171,5 +176,6 @@ def get_spurs_for_output(user_id, conversation_id) -> dict:
     
         fixed_spurs = generate_spurs(user_profile, spurs_to_fix, connection_profile, conversation, situation, topic)
         spurs = merge_spurs(spurs, fixed_spurs)
+        spurs_to_fix = spurs_to_regenerate(spurs)
     
     return spurs

@@ -35,10 +35,13 @@ def generate():
 
     # Auto-load connection profile if not provided
     if not connection_profile:
-        if active_connection_id and active_connection_id.casefold() != (f"{user_id}:current_app.config['NULL_CONNECTION_ID']").casefold():
+        if active_connection_id and not active_connection_id.endswith(current_app.config['NULL_CONNECTION_ID']):
             all_connections = get_user_connections(user_id).get("connections", [])
             match = next((p for p in all_connections if p.get("connection_id") == active_connection_id), {})
-            connection_profile = match
+            if match:
+                connection_profile = match
+            else:
+                connection_profile = None
         else:
             connection_profile = None
     

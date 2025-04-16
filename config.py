@@ -11,6 +11,12 @@ class Config:
     GOOGLE_CLOUD_VERTEX_API_KEY = os.environ.get("GOOGLE_CLOUD_VERTEX_API_KEY", "")
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
+    ## Google Cloud Vertex credentials
+    GOOGLE_CLOUD_PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT_ID", "") ## Google Cloud project ID
+    GOOGLE_VERTEX_AI_LOCATION = os.environ.get("GOOGLE_VERTEX_AI_LOCATION", "") ## Location of the Vertex AI Search App (e.g., "global", "us")
+    GOOGLE_VERTEX_AI_DATASTORE_ID = os.environ.get("GOOGLE_VERTEX_AI_DATASTORE_ID") ##ID of Vertex AI Search Data Store indexing conversations
+
+
     ENABLE_AUTH = os.environ.get("ENABLE_AUTH", "True").lower() == "true"
     
     SPURLY_SYSTEM_PROMPT_PATH = os.environ.get("SPURLY_SYSTEM_PROMPT_PATH", "resources/spurly_system_prompt.txt")
@@ -39,12 +45,13 @@ class Config:
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week
 
     ID_DELIMITER = ":"    
+    NULL_CONNECTION_ID = "null_connection_id:p"
     ANONYMOUS_ID_INDICATOR = "a"
     USER_ID_INDICATOR = "u"
     CONVERSATION_ID_INDICATOR = "c"   
     CONNECTION_ID_INDICATOR = "p"
     SPUR_ID_INDICATOR = "s"
-    
+       
 
     LOGGER_LEVEL = os.environ.get("LOGGER_LEVEL", "INFO")
     
