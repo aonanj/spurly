@@ -9,7 +9,7 @@ onboarding_bp = Blueprint("onboarding", __name__)
 logger = get_logger(__name__)
 
 @onboarding_bp.route("/onboarding", methods=["POST"])
-def onboarding() -> Union[Dict, str]:
+def onboarding() -> Union[dict, str]:
     """
     
     Onboarding route for initial login. User information stored in persisntent memory. User ID generated. 

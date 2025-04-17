@@ -19,7 +19,7 @@ def create_connection_profile(data: dict) -> dict:
     Returns:
         status: status of creating a connection profile.
     """
-    user_id = data.get("user_id")
+    user_id = g.user['user_id']
     if not user_id:
         logger.error("Error: Cannot create connection profile - missing user ID")
         raise TypeError("Error: Cannot create connection profile - missing user ID")

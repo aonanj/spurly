@@ -1,8 +1,8 @@
 from class_defs.conversation_def import Conversation
 from datetime import datetime
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from infrastructure.auth import require_auth
-from infrastructure.id_generator import generate_generic_connection_id, generate_conversation_id
+from infrastructure.id_generator import get_null_connection_id, generate_conversation_id
 from infrastructure.logger import get_logger
 from services.ocr_service import process_image
 
@@ -20,21 +20,20 @@ def upload_image():
 
 
     
-    user_id = request.headers.get("X-User-ID", "").strip()
+    user_id = g.user['user_id']
     connection_id = request.headers.get("connection_id", None)
     situation = request.form.get("situation", "").strip()
     topic = request.form.get("topic", "").strip()
     
     
     if not connection_id:
-        connection_id = generate_generic_connection_id
+        connection_id = get_null_connection_id()
     
     connection_id.strip()
     
-    ocr_marker = current_app.config['OCR_MARKER']
     conversation_id = request.form.get("conversation_id")
     if not conversation_id:
-        generate_conversation_id(user_id)
+        conversation_id = generate_conversation_id(user_id)
 
     
     conversation_msgs = {}    

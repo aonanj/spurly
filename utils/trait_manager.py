@@ -1,7 +1,7 @@
 from flask import current_app
-from infrastructure.clients import chat_client
+from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
-from utils.prompt_loader import load_system_prompt
+from utils.prompt_loader import get_system_prompt
 import json
 import openai
 
@@ -38,9 +38,10 @@ Conversation:
 """
 
     try:
-        system_prompt = load_system_prompt()
-        
-        response = chat_client.completions.create(
+        system_prompt = get_system_prompt()
+
+        chat_client=get_openai_client()
+        response = chat_client.chat.completions.create(
             model=current_app.config['AI_MODEL'],
             messages=[
                 {"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": system_prompt},
@@ -72,7 +73,8 @@ Message:
 {message}"""
 
     try:
-        response = chat_client.completions.create(
+        chat_client = get_openai_client()
+        response = chat_client.chat.completions.create(
             model=current_app.config['AI_MODEL'],
             messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
         )

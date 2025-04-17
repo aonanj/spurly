@@ -1,14 +1,14 @@
 from class_defs.spur_def import Spur
 from datetime import datetime
 from flask import current_app
-from infrastructure.clients import chat_client
+from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
 from services.connection_service import get_connection_profile
 from services.storage_service import get_conversation
 from services.user_service import get_user_profile
 from utils.gpt_output import parse_gpt_output
-from utils.prompt_loader import load_system_prompt
+from utils.prompt_loader import get_system_prompt
 from utils.prompt_template import build_prompt
 from utils.trait_manager import infer_tone, infer_situation
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
@@ -86,9 +86,11 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
-            system_prompt = load_system_prompt()
+            system_prompt = get_system_prompt()
+
+            openai_client = get_openai_client()
             
-            response = chat_client.ChatCompletion.create(
+            response = openai_client.chat.completions.create(
                 model=current_app.config['AI_MODEL'],
                 messages=[
                     {"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": system_prompt},
@@ -98,7 +100,7 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
                 max_tokens=current_app.config['AI_MAX_TOKENS'],
             )
 
-            raw_output = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+            raw_output = response.choices[0].message.content if response.choices else ''
             gpt_parsed_filtered_output = parse_gpt_output(raw_output)
             validated_output = validate_and_normalize_output(gpt_parsed_filtered_output)
             
@@ -125,12 +127,22 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
 
             return spur_objects
 
-        except Exception as e:
-            logger.warning(f"[Attempt {attempt}] GPT generation failed — Error: {e}")
+        except openai.APIError as e: # Catch specific OpenAI errors
+            logger.warning(f"[Attempt {attempt+1}] OpenAI API error during GPT generation: {e}")
+            # Handle specific API errors (rate limits, auth issues) if needed
             if attempt == 2:
-                logger.error(f"[{__package__ or __name__}] Final GPT attempt failed — returning fallback.")
-                return fallback_response
-            continue
+                 logger.error("Final GPT attempt failed due to API error.", exc_info=True)
+                 # Return fallback
+        except Exception as e:
+            logger.warning(f"[Attempt {attempt+1}] GPT generation failed — Error: {e}", exc_info=True)
+            if attempt == 2:
+                logger.error("Final GPT attempt failed — returning fallback.")
+                # Return fallback response (ensure fallback_response is defined)
+                # return fallback_response # Example
+            # continue # Go to next attempt
+
+    # Ensure a return path if the loop finishes without success
+    logger.error("All GPT generation attempts failed.")
 
 def get_spurs_for_output(user_id: str, conversation_id: str) -> list:
     """

@@ -65,4 +65,4 @@ class Config:
     ##Used as part of conversation_id to flag conversations extracted via OCR
     OCR_MARKER = "OCR"
     
-    DEFAULT_LOG_LEVEL = 1
+    DEFAULT_LOG_LEVEL = 20

@@ -70,7 +70,7 @@ def get_conversation_bp(conversation_id):
 @conversations_bp.route("/conversations/<conversation_id>", methods=["DELETE"])
 @require_auth
 def delete_conversation_bp(conversation_id):
-    user_id = request.args.get("user_id")
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -81,7 +81,7 @@ def delete_conversation_bp(conversation_id):
 @conversations_bp.route("/saved-spurs", methods=["GET"])
 @require_auth
 def fetch_saved_spurs_bp():
-    user_id = request.args.get("user_id")
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")

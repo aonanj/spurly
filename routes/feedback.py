@@ -1,5 +1,5 @@
 from class_defs.spur_def import Spur
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from gpt_training.anonymizer import anonymize_spur
 from infrastructure.auth import require_auth
 from services.storage_service import save_feedback
@@ -11,7 +11,7 @@ feedback_bp = Blueprint("feedback", __name__)
 @require_auth
 def feedback():
     data = request.json
-    user_id = data.get("user_id")
+    user_id = g.user['user_id']
     spur = data.get("spur")  # should be a dict representing a Spur
     feedback_type = data.get("feedback")  # "thumbs_up" or "thumbs_down"
 

@@ -1,11 +1,10 @@
 from flask import request, jsonify, current_app, g
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from logger import get_logger
 import jwt
 
 logger = get_logger(__name__)
-
-
 
 def create_jwt(user_id:str) -> str:
     """
@@ -21,16 +20,20 @@ def create_jwt(user_id:str) -> str:
 
     """
     try:
+        expiration_delta = timedelta(seconds=current_app.config['JWT_EXPIRATION'])
+        expires = datetime.now(timezone.utc) + expiration_delta
+
         payload = {
             "user_id": user_id,
-            "exp": current_app.config['JWT_EXPIRATION'],
+            "exp": expires,
+            "iat": datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm="HS256")
         logger.log(current_app.config['DEFAULT_LOG_LEVEL'], f"JWT token successfully encoded for user: {user_id}")
         return token
     except Exception as e:
-        logger.error("[%s] Error: %s Create JWT token failed for user", __name__, e)
-        raise jwt.PyJWKError(f"Create JWT token failed for user: {e}") from e
+        logger.error("Create JWT token failed for user %s: %s", user_id, e, exc_info=True)
+        raise jwt.PyJWKError(f"Create JWT token failed for user {user_id}: {e}") from e
 
 
 def decode_jwt(token: str) -> dict:

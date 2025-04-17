@@ -123,7 +123,7 @@ def get_spur(spur_id: str) -> Spur:
     doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
     doc = doc_ref.get()
     if doc.exists:
-        spur = Spur.from_dic(doc)
+        spur = Spur.from_dict(doc)
         return spur
     else:
         err_point = __package__ or __name__

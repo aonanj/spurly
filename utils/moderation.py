@@ -1,4 +1,4 @@
-from infrastructure.clients import mod_client
+from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
 import openai
 import re
@@ -47,7 +47,7 @@ def moderate_topic(text: str) -> dict:
 
 def moderate_with_openai(text):
     try:
-        response = mod_client.create(input=text)
+        response = get_openai_client().moderations.create(input=text)
         flagged = response["results"][0]["flagged"]
         return {"safe": True} if not flagged else {"safe": False, "reason": "openai_moderation"}  
     except Exception as e:

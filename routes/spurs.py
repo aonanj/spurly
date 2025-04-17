@@ -18,7 +18,7 @@ conversations_bp = Blueprint("spurs", __name__)
 @conversations_bp.route("/spurs", methods=["GET"])
 @require_auth
 def fetch_saved_spurs_bp():
-    user_id = request.args.get("user_id")
+    user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
