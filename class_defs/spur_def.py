@@ -34,8 +34,35 @@ class Spur:
     created_at: datetime
 
     def to_dict(self):
-        return self.__dict__
+        return {
+            "user_id": self.user_id,
+            "spur_id": self.spur_id,
+            "conversation_id": self.conversation_id,
+            "connection_id": self.connection_id,
+            "situation": self.situation,
+            "topic": self.topic,
+            "variant": self.variant,
+            "tone": self.tone,
+            "text": self.text,
+            "created_at": self.created_at.isoformat().replace("+00:00", "Z") if self.created_at else None,
+        }
 
     @classmethod
     def from_dict(cls, data):
-        return cls(**data)
+        created_at_str = data.get("created_at")
+        created_at = (
+            datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            if created_at_str else None
+        )
+        return cls(
+            user_id=data["user_id"],
+            spur_id=data["spur_id"],
+            conversation_id=data.get("conversation_id"),
+            connection_id=data.get("connection_id"),
+            situation=data.get("situation"),
+            topic=data.get("topic"),
+            variant=data.get("variant"),
+            tone=data.get("tone"),
+            text=data.get("text"),
+            created_at=created_at
+        )

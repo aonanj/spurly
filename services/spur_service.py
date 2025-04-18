@@ -1,5 +1,5 @@
 from class_defs.spur_def import Spur
-from flask import current_app
+from flask import g
 from google.cloud import firestore
 from infrastructure.clients import db
 from infrastructure.id_generator import extract_user_id_from_other_id
@@ -17,7 +17,7 @@ def save_spur(user_id, spur):
             logger.error("Error: Missing user ID in save_spur")
             raise ValueError("Error: Missing user ID in save_spur")
 
-        user_id = spur.get("user_id", "")
+        user_id = g.user['user_id']
         spur_id = spur.get("spur_id", "")
         conversation_id = spur.get("conversation_id", "")
         connection_id = spur.get("connection_id", "")

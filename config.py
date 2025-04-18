@@ -17,6 +17,15 @@ class Config:
     GOOGLE_VERTEX_AI_DATASTORE_ID = os.environ.get("GOOGLE_VERTEX_AI_DATASTORE_ID") ##ID of Vertex AI Search Data Store indexing conversations
 
 
+    PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT") 
+    REGION = os.environ.get("VERTEX_AI_REGION", "us-central1") # TODO Change Region
+    INDEX_ENDPOINT_ID = os.environ.get("VERTEX_AI_INDEX_ENDPOINT_ID") # Your Vector Search index endpoint ID
+    DEPLOYED_INDEX_ID = os.environ.get("VERTEX_AI_DEPLOYED_INDEX_ID") # Your deployed index ID within the endpoint
+    EMBEDDING_MODEL_ENDPOINT_ID = os.environ.get("VERTEX_AI_EMBEDDING_ENDPOINT_ID") # Your embedding model endpoint ID (e.g., textembedding-gecko)
+    EMBEDDING_DIMENSIONS = 768 # Or the dimension your embedding model outputs
+
+    
+
     ENABLE_AUTH = os.environ.get("ENABLE_AUTH", "True").lower() == "true"
     
     SPURLY_SYSTEM_PROMPT_PATH = os.environ.get("SPURLY_SYSTEM_PROMPT_PATH", "resources/spurly_system_prompt.txt")

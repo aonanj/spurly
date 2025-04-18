@@ -1,5 +1,5 @@
 from class_defs.conversation_def import Conversation
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app, g
 from infrastructure.auth import require_auth
 from infrastructure.id_generator import get_null_connection_id, generate_conversation_id
@@ -46,7 +46,7 @@ def upload_image():
         spurs={},         # Spurs should remain empty unless explicitly supplied or inferred later
         situation=situation,
         topic=topic,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
         )
     
     

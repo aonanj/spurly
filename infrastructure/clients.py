@@ -1,15 +1,10 @@
 # infrastructure/clients.py
-
-# --- Imports ---
-# Standard library imports
-import os
-
-# Third-party imports
-from firebase_admin import credentials, initialize_app, get_app
+from firebase_admin import initialize_app, firestore, get_app, credentials
 from google.cloud import firestore, vision
 from google.oauth2 import service_account
-from openai import OpenAI # Import the main OpenAI class
-import firebase_admin
+from openai import OpenAI
+import firebase_admin 
+import os
 
 # Local application imports
 from .logger import get_logger # Use relative import if logger is in the same directory
@@ -19,6 +14,7 @@ from .logger import get_logger # Use relative import if logger is in the same di
 db = None
 vision_client = None
 openai_client = None 
+
 
 
 # --- Initialization Function ---
@@ -48,7 +44,7 @@ def init_clients(app):
              logger.info("Firebase Admin already initialized.")
     except Exception as e:
         logger.error("Failed to initialize Firebase Admin: %s", e, exc_info=True)
-        raise # Stop app initialization if critical components fail
+        raise RuntimeError("Firebase Admin client has not been initialized.")
 
     # --- Firestore Client ---
     try:
@@ -64,7 +60,7 @@ def init_clients(app):
         logger.info("Firestore client initialized for project: %s", project_id)
     except Exception as e:
         logger.error("Failed to initialize Firestore client: %s", e, exc_info=True)
-        raise
+        raise RuntimeError("Firestore client has not been initialized.")
 
     # --- Google Cloud Vision Client ---
     try:
@@ -76,7 +72,7 @@ def init_clients(app):
         logger.info("Google Cloud Vision client initialized.")
     except Exception as e:
         logger.error("Failed to initialize Google Cloud Vision client: %s", e, exc_info=True)
-        raise
+        raise RuntimeError("Vision client has not been initialized.")
 
     # --- OpenAI Client ---
     try:
@@ -91,7 +87,7 @@ def init_clients(app):
         # e.g., openai_client.moderations.create(...)
     except Exception as e:
         logger.error("Failed to initialize OpenAI client: %s", e, exc_info=True)
-        raise
+        raise RuntimeError("OpenAI client has not been initialized.")
 
     logger.info("All external clients initialized successfully.")
 

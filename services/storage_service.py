@@ -1,12 +1,16 @@
 from class_defs.conversation_def import Conversation
-from datetime import datetime, timezone, timedelta, date
-from flask import current_app
-from google.cloud import firestore
+from datetime import datetime, timezone, date, timedelta
+from flask import g, current_app
+from google.cloud import aiplatform, firestore
+from google.cloud.aiplatform.matching_engine import MatchingEngineIndexEndpoint
+from google.cloud.aiplatform.matching_engine.matching_engine_index_endpoint import Namespace, N
+from google.protobuf import struct_pb2
 from gpt_training.anonymizer import anonymize_conversation
 from infrastructure.clients import db
-from infrastructure.id_generator import generate_conversation_id, extract_user_id_from_other_id
+from infrastructure.id_generator import generate_conversation_id
 from infrastructure.logger import get_logger
-from uuid import uuid4
+import openai
+
 
 
 logger = get_logger(__name__)
@@ -26,7 +30,7 @@ def save_conversation(data: Conversation) -> str:
 
     """
 
-    user_id = data.get("user_id", None)
+    user_id = g.user['user_id']
     connection_id = data.get("connection_id", None)
     
     if not user_id:
@@ -37,34 +41,41 @@ def save_conversation(data: Conversation) -> str:
         conversation_id = generate_conversation_id(user_id)
     elif conversation_id.startswith(":"):
         conversation_id = f"{user_id}{conversation_id}"
-    else:
-        conversation_id = generate_conversation_id(user_id)
-        
+
     spurs = data.get("spurs", None)
     situation = data.get("situation", "")
     topic = data.get("topic", "")
+    conversation = get_conversation(conversation_id)
+    conversation_text = Conversation.conversation_as_string(conversation)
     
     try:
         doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            conversation = Conversation.from_dict(doc.to_dict())
+
 
         doc_data = {
             "user_id": user_id,
             "conversation_id": conversation_id,
-            "conversation": data.get("conversation", []),
+            "conversation": conversation,
             "connection_id": connection_id,
             "situation": situation,
             "topic": topic,
             "spurs": spurs,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
 
         anonymize_conversation(Conversation.from_dict(doc_data))
 
         doc_ref.set(doc_data)
         return {"status": "conversation saved", "conversation_id": conversation_id}
+    except firestore.ReadAfterWriteError as e:
+        logger.error("[%s] Error: %s Save conversation failed", __name__, e)
+        raise firestore.ReadAfterWriteError(f"Save conversation failed: {e}") from e
     except Exception as e:
-        logger.error("[%s] Error: %s Anonymizing conversation failed", __name__, e)
-        raise ValueError(f"Anonymizing conversation failed: {e}") from e
+        logger.error("[%s] Error: %s Save conversation failed", __name__, e)
+        raise ValueError(f"Save conversation failed: {e}") from e
         
 
 def get_conversation(conversation_id: str) -> Conversation:
@@ -80,7 +91,7 @@ def get_conversation(conversation_id: str) -> Conversation:
 
     """
     
-    user_id = extract_user_id_from_other_id(conversation_id)
+    user_id = g.user['user_id']
     
     if not user_id or not conversation_id:
         logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
@@ -94,7 +105,7 @@ def get_conversation(conversation_id: str) -> Conversation:
         logger.error(f"Error: no conversation exists with conversation_id {conversation_id}", __name__)
         return None
 
-def delete_conversation(conversation_id: str) -> str:
+def delete_conversation(conversation_id: str) -> dict:
     """
     Deletes a conversation by the conversation_id.
 
@@ -103,77 +114,79 @@ def delete_conversation(conversation_id: str) -> str:
             str
     Return
         status: confirmation string that conversation corresponding to the conversation_id is deleted
-            str
+            dict
 
     """
     
-    user_id = extract_user_id_from_other_id(conversation_id)
+    user_id = g.user['user_id']
     
     if not user_id or not conversation_id:
         logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
         return {"error": "Missing user_id or conversation_id"}, 400
 
     db.collection("users").document(user_id).collection("conversations").document(conversation_id).delete()
-    return {f"status: conversation_id {conversation_id} deleted"}
+    #TODO Remove corresponding entries from Vector Search index
+    return {"status": f"conversation_id {conversation_id} deleted"}
+
 
 ## TODO: Need to refactor the keyword search using Firebase, Vertex AI, Firestore.
 def get_conversations(user_id, filters=None):
     """
-    searches for conversations based on filters. searches all of situation, topic, and conversation text.
-     1. keyword: searches for keyword in situation, topic, and conversation text
-     2. date_from: searches for conversations created after this date
-     3. date_to: searches for conversations created before this date
-     4. connection_id: searches for conversations with this connection_id
+    Searches for conversations based on filters. Uses Vertex AI Vector Search for keyword search
+    and Firestore for date/connection_id filtering.
 
     Args
         user_id: user_id associated with the conversations being searched/sorted
             str
-        filters: dict object of the search/sort criteria
+        filters: dict object of the search/sort criteria (keyword, date_from, date_to, connection_id, sort)
+            dict
 
     Return
-        List of conversation previews: Returns a list of conversation previews matching the search/sort criteria, grouped by connection_id
+        List of conversation previews: Returns a list of conversation previews matching the criteria.
             List[dict]
-    
     """
-    if not user_id:
-        logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
-        return {"error": "Missing user_id or conversation_id"}, 400
+    if not user_id: #
+        logger.error("Error: Failed to get conversations - missing user_id", __name__) #
+        return {"error": "Missing user_id"}, 400 #
+
+    if filters is None:
+        filters = {}
+
+        
+    keyword = filters.get("keyword")
+    connection_id_filter = filters.get("connection_id")
+    from_date = filters.get("date_from") or datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    # Ensure to_date includes the whole day if it's just a date
+    to_date_input = filters.get("date_to") or datetime.now(timezone.utc)
+    if isinstance(to_date_input, date) and not isinstance(to_date_input, datetime):
+         to_date = datetime.combine(to_date_input, datetime.max.time(), tzinfo=timezone.utc)
+    else:
+         # Add a small delta to ensure end of day is included if time is 00:00:00
+         if to_date_input.time() == datetime.min.time().replace(tzinfo=timezone.utc):
+              to_date = to_date_input + timedelta(days=1) - timedelta(microseconds=1)
+         else:
+              to_date = to_date_input
+
+
+    sort_order = filters.get("sort", "desc")
+    direct = firestore.Query.DESCENDING if sort_order == "desc" else firestore.Query.ASCENDING
+
+    conversation_ids_to_fetch = []
+    results_from_vector_search = False
+    final_previews = []
 
     try:
-        ref = db.collection("users").document(user_id).collection("conversations")
+        # --- If KEYWORD provided: Use Vector Search with filtering ---
+   
 
-        from_date = filters["date_from"] if filters["date_from"] else datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-        to_date = filters["to_date"] if filters["to_date"] else date.today()
-        sort_order = filters.get("sort", "desc")
+        logger.info(f"Returning {len(final_previews)} conversation previews.")
+        return final_previews
 
-        query = ref.where('created_at', '>=', from_date).where('created_at', '<=', to_date)
-        direct = firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING
-        query = query.order_by('created_at', direction=direct)
-
-        convos = ref.stream()
-        grouped = {}
-        keyword = filters["keyword"]
-        for convo in convos:
-            data = convo.to_dict()
-            connection_id = data.get("connection_id", "(none)")
-
-            if filters and keyword:
-                in_topic = keyword in (data.get("topic", "").lower())
-                in_situation = keyword in (data.get("situation", "").lower())
-                in_convo_text = any(keyword in m.get("text", "").lower() for m in data.get("conversation", []))
-                if not (in_topic or in_situation or in_convo_text):
-                    continue  # Skip non-matches
-
-            if connection_id not in grouped:
-                grouped[connection_id] = []
-
-            grouped[connection_id].append({
-                "conversation_id": convo.id,
-                "preview": data.get("conversation", [])[-1]["text"] if data.get("conversation") else "",
-                "created_at": data.get("created_at"),
-            })
-
-        return grouped
     except Exception as e:
-        logger.error(f"[%s] Error: %s Failed to get conversations for user_id {user_id}", __name__, e)
-        raise ValueError(f"Failed to get conversations for user_id {user_id}: {e}")
+        logger.error(f"[%s] Error: {e} Failed to get conversations for user_id {user_id}", __name__)
+        # Add more specific error logging if possible
+        if "aiplatform" in str(e).lower():
+             logger.error("Underlying error likely related to Vertex AI call.")
+        elif "firestore" in str(e).lower():
+             logger.error("Underlying error likely related to Firestore call.")
+        raise ValueError(f"Failed to get conversations for user_id {user_id}: {e}") from e

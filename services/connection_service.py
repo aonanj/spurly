@@ -1,7 +1,6 @@
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
-from flask import current_app
-from flask import jsonify
+from flask import current_app, jsonify, g
 from infrastructure.clients import db
 from infrastructure.id_generator import generate_connection_id, get_null_connection_id
 from infrastructure.logger import get_logger

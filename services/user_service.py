@@ -1,7 +1,7 @@
 from class_defs.profile_def import UserProfile
 from dataclasses import fields
 from firebase_admin import auth
-from flask import jsonify, current_app
+from flask import jsonify, current_app, g
 from infrastructure.clients import db
 from infrastructure.logger import get_logger
 
@@ -21,7 +21,7 @@ def format_user_profile(profile: UserProfile) -> str:
         formatted string including user's profile information.
     
     """
-    user_id = profile.get("user_id")
+    user_id = g.user['user_id']
     if not user_id:
         logger.error("Error: Missing user ID - format user profile failed")
         raise ValueError("Format user profile failed: Missing user ID")
@@ -63,7 +63,7 @@ def save_user_profile(data: UserProfile) -> bool:
     
     """
     
-    user_id = data.get("user_id")
+    user_id = g.user['user_id']
     if not user_id:
         logger.error("Error: Missing user ID - save user profile failed")
         raise ValueError("Save user profile failed: Missing user ID")
@@ -216,6 +216,35 @@ def update_spur_preferences(user_id: str, selected_spurs: list[str]) -> None:
     if not selected_spurs:
         logger.error("Error: Missing spur preferences - update user spur preferences failed")
         raise ValueError("Error: Missing spur preferences - update user spur preferences failed")
+    
+    try:
+        db.collection("users").document(user_id).update({ "selected_spurs": selected_spurs})
+    except Exception as e:
+        logger.error("[%s] Error: %s Update user spur preferences failed", __name__, e)
+        raise ValueError(f"Update user spur preferences failed: {e}") from e
+
+def get_selected_spurs(user_id: str) -> list:
+    """
+    
+    Gets list of spurs to generate for user, as configured by the user in the frontend settings menu.
+    
+    Args:
+        user_id: The user id corresponding to the settings being updated. 
+            string
+
+    
+    Return:
+        selected_spurs: The key names for each of the spur variants to be generated for the user.
+            List[strings]
+    
+    """
+    if not user_id:
+        logger.error("Error: Missing user ID - update user spur preferences failed")
+        raise ValueError("Error: Missing user ID - update user spur preferences failed")
+
+    user_profile = get_user_profile(user_id)
+    selected_spurs = user_profile['selected_spurs']
+
     
     try:
         db.collection("users").document(user_id).update({ "selected_spurs": selected_spurs})

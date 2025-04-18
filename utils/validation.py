@@ -38,7 +38,7 @@ COMMON_PHRASES = [
     "how are you doing"
 ]
 
-def spurs_to_regenerate(spurs: list[Spur]) -> list[Spur]:
+def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
     """
     Identifies SPURs that should be regenerated based on generic or weak phrasing.
     
@@ -46,13 +46,13 @@ def spurs_to_regenerate(spurs: list[Spur]) -> list[Spur]:
         spurs (list[Spur]): List of Spur objects.
 
     Returns:
-        list[Spur]: Subset of Spur objects flagged for regeneration.
+        list[str]: Subset of Spur objects flagged for regeneration.
     """
     spurs_to_retry = []
     for spur in spurs:
         message = getattr(spur, "text", "").lower()
         if any(phrase in message for phrase in COMMON_PHRASES):
-            spurs_to_retry.append(spur)
+            spurs_to_retry.append(spur.variant)
     return spurs_to_retry
 
 CONFIDENCE_THRESHOLDS = {

@@ -1,10 +1,10 @@
 from class_defs.spur_def import Spur
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import current_app
 from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
-from services.connection_service import get_connection_profile
+from services.connection_service import get_connection_profile, get_active_connection_firestore
 from services.storage_service import get_conversation
 from services.user_service import get_user_profile
 from utils.gpt_output import parse_gpt_output
@@ -39,30 +39,46 @@ def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
     return merged_spurs
 
 
-def generate_spurs(user_profile, selected_spurs, connection_profile=None, conversation=None, situation="", topic="") -> list:
+def generate_spurs(user_id, connection_id, conversation_id, situation="", topic="", selected_spurs=None) -> list:
     """
     Generates spur responses based on the provided conversation context and profiles.
     
-    Parameters:
-        user_profile (dict or UserProfile): Data for the user's profile.
-        connection_profile (dict or ConnectionProfile or None): Data for the connection's profile.
-        conversation (dict or Conversation): The conversation text.
-        situation (str): A description of the conversation's context.
-        topic (str): A topic associated with the conversation.
-        
-        
+    Args:
+        user_id: user ID
+            str
+        connection_ID: connection ID of connection associated with conversation.
+            str
+        conversation_id: conversation ID
+            str
+        situation: A description of the conversation's context
+            str
+        topic: A topic associated with the conversation
+            str
+        selected_spurs: list of spurs to be regenerated
+            List(str)
+
     Returns:
         List of generated Spur objects 
     """
+    user_profile = get_user_profile(user_id)
+    if not selected_spurs:
+        selected_spurs = user_profile['selected_spurs']
+    if connection_id:
+        connection_profile = get_connection_profile(user_id, connection_id)
+    else:
+        connection_profile = get_active_connection_firestore(user_id, connection_id)
 
-    if conversation and isinstance(conversation, dict) and conversation.get("conversation"):
+    if conversation_id:
+        conversation = get_conversation(conversation_id)
+    
+    if conversation and isinstance(conversation, dict):
         tone_info = infer_tone(conversation["conversation"][-1])
         if classify_confidence(tone_info["confidence"]) == "high":
             tone = tone_info["tone"]
-    if not situation:
-        situation_info = infer_situation(conversation.get("conversation", []))
-        if classify_confidence(situation_info["confidence"]) == "high":
-            situation = situation_info["situation"]
+        if not situation:
+            situation_info = infer_situation(conversation.get("conversation", []))
+            if classify_confidence(situation_info["confidence"]) == "high":
+                situation = situation_info["situation"]
 
     context_block = (
         conversation,
@@ -122,7 +138,7 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
                         variant=key,
                         tone=tone or "",
                         text=spur_text,
-                        created_at=datetime.utcnow()
+                        created_at=datetime.now(timezone.utc)
                     ))
 
             return spur_objects
@@ -144,50 +160,44 @@ def generate_spurs(user_profile, selected_spurs, connection_profile=None, conver
     # Ensure a return path if the loop finishes without success
     logger.error("All GPT generation attempts failed.")
 
-def get_spurs_for_output(user_id: str, conversation_id: str) -> list:
+def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str, situation: str, topic: str) -> list:
     """
         Gets spurs that are formatted and content-filtered to send to the frontend. 
         Iterative while loop structure regenerates spurs that fail content filtering
         
-            **Args
-                user_id: user id in current context 
-                    str
-                conversation_id: conversation id in current context
-                    str
-            **Return
-                List[Spur]: A list of generated Spur objects
+        **Args
+            user_id: user ID
+                str
+            connection_ID: connection ID of connection associated with conversation.
+                str
+            conversation_id: conversation ID
+                str
+            situation: A description of the conversation's context
+                str
+            topic: A topic associated with the conversation
+                str
+
+        **Return
+            List[Spur]: A list of generated Spur objects
     """ 
-    null_connection_id = current_app.config['NULL_CONNECTION_ID']
-    connection_profile = None
-    conversation = None
-    situation = ""
-    topic = ""
     
     user_profile = get_user_profile(user_id=user_id)
-    conversation = get_conversation(conversation_id=conversation_id)    
-    connection_id = conversation["connection_id"]
-    if connection_id and not connection_id.endswith(null_connection_id):
-        connection_profile = get_connection_profile(connection_id=connection_id)
-    
-    situation = conversation["situation"]
-    topic = conversation["topic"]
-    
     selected_spurs = user_profile["selected_spurs"]
-    
-    spurs = generate_spurs(user_profile, selected_spurs, connection_profile, conversation, situation, topic)
+
+    spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs)
     counter = 0
     max_iterations = 10
-    
-    spurs_to_fix = spurs_to_regenerate(spurs)
-    
-    while spurs_to_fix:
+
+    selected_spurs = spurs_to_regenerate(spurs)
+
+    while selected_spurs and len(selected_spurs) > 0:
         if counter >= max_iterations:
             break
-        
+
         counter += 1
-    
-        fixed_spurs = generate_spurs(user_profile, spurs_to_fix, connection_profile, conversation, situation, topic)
+
+        fixed_spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs)
         spurs = merge_spurs(spurs, fixed_spurs)
-        spurs_to_fix = spurs_to_regenerate(spurs)
-    
+        selected_spurs = spurs_to_regenerate(spurs)
+
     return spurs

@@ -1,12 +1,13 @@
 from class_defs.conversation_def import Conversation
 from class_defs.spur_def import Spur
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import current_app
 from infrastructure.clients import db
 from infrastructure.id_generator import generate_anonymous_user_id, generate_anonymous_conversation_id, generate_anonymous_connection_id, generate_anonymous_spur_id
 from infrastructure.logger import get_logger
 from services.connection_service import get_connection_profile
 from services.user_service import get_user_profile
+import openai
 
 logger = get_logger(__name__)
 
@@ -118,6 +119,9 @@ def save_anonymized_conversation(anonymized_conversation: Conversation) -> bool:
         
         training_ref.set(anonymized_conversation_dict)
         return (f"Anonymized conversation successfully anonymized with id: {anonymized_conversation_id}")
+    except openai.APIConnectionError as e:
+        logger.error("[%s] Error: %s Save anonymized conversation failed", __name__, e)
+        raise openai.APIConnectionError(f"Save anonymized conversation failed: {e}") from e
     except Exception as e:
         logger.error("[%s] Error: %s Save anonymized conversation failed", __name__, e)
         raise ValueError(f"Save anonymized conversation failed: {e}") from e
@@ -152,7 +156,7 @@ def anonymize_spur(original_spur: Spur, is_quality_spur: bool)->str:
         spur_dict['spur_id'] = anonymous_spur_id
         spur_dict['connection_id'] = anonymous_connection_id
         spur_dict['conversation_id'] = anonymous_conversation_id
-        spur_dict['created_at'] = datetime.utcnow()
+        spur_dict['created_at'] = datetime.now(timezone.utc)
         
         save_anonymized_spur(Spur.from_dict(spur_dict), is_quality_spur)
 
@@ -192,6 +196,9 @@ def save_anonymized_spur(anonymized_spur: Spur, is_quality_spur) -> str:
         
         
         return (f"Anonymized spur successfully saved as anonymized_spur_id: {anonymized_spur_id}")
+    except openai.APIConnectionError as e:
+        logger.error("[%s] Error: %s Save anonymized spur failed", __name__, e)
+        raise openai.APIConnectionError(f"Save anonymized spur failed: {e}") from e
     except Exception as e:
         logger.error("[%s] Error: %s Save anonymized spur failed", __name__, e)
         raise ValueError(f"Save anonymized spur failed: {e}") from e

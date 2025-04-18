@@ -29,8 +29,44 @@ class Conversation:
     created_at: datetime
 
     def to_dict(self):
-        return self.__dict__
+        return {
+            "user_id": self.user_id,
+            "conversation_id": self.conversation_id,
+            "conversation": self.conversation,
+            "connection_id": self.connection_id,
+            "situation": self.situation,
+            "topic": self.topic,
+            "spurs": self.spurs,
+            "created_at": self.created_at.isoformat().replace("+00:00", "Z") if self.created_at else None,
+        }
 
     @classmethod
     def from_dict(cls, data):
-        return cls(**data)
+        created_at_str = data.get("created_at")
+        created_at = (
+            datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            if created_at_str else None
+        )
+        return cls(
+            user_id=data["user_id"],
+            conversation_id=data["conversation_id"],
+            conversation=data["conversation"],
+            connection_id=data.get("connection_id"),
+            situation=data.get("situation"),
+            topic=data.get("topic"),
+            spurs=data.get("spurs"),
+            created_at=created_at
+        )
+
+    def conversation_as_string(self) -> str:
+        """
+        Returns the conversation as a formatted string.
+        Each message in the conversation list is expected to be a dictionary
+        with at least a 'sender' and 'text' key. Adjust if your actual structure differs.
+        """
+        lines = []
+        for message in self.conversation:
+            sender = message.get("sender", "Unknown")
+            text = message.get("text", "")
+            lines.append(f"{sender}: {text}")
+        return "\n".join(lines)
