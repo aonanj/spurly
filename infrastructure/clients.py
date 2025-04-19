@@ -1,5 +1,7 @@
 # infrastructure/clients.py
+from algoliasearch.search.client import SearchClientSync
 from firebase_admin import initialize_app, firestore, get_app, credentials
+from flask import current_app
 from google.cloud import firestore, vision
 from google.oauth2 import service_account
 from openai import OpenAI
@@ -13,7 +15,9 @@ from .logger import get_logger # Use relative import if logger is in the same di
 # Initialize clients to None initially
 db = None
 vision_client = None
-openai_client = None 
+openai_client = None
+_algolia_client: SearchClientSync | None = None
+_algolia_index = None  
 
 
 
@@ -26,7 +30,7 @@ def init_clients(app):
     Args:
         app: Flask app object providing configuration.
     """
-    global db, vision_client, openai_client # Declare modification of global variables
+    global db, vision_client, openai_client, _algolia_client, _algolia_index # Declare modification of global variables
 
     logger = get_logger(__name__)
     logger.info("Initializing external clients...")
@@ -74,6 +78,24 @@ def init_clients(app):
         logger.error("Failed to initialize Google Cloud Vision client: %s", e, exc_info=True)
         raise RuntimeError("Vision client has not been initialized.")
 
+    # --- Algolia Search Client ---
+    try:
+        algolia_app_id = app.config.get("ALGOLIA_APP_ID")
+        algolia_admin_key = app.config.get("ALGOLIA_ADMIN_KEY")
+        algolia_index_name = app.config.get("ALGOLIA_INDEX_NAME")
+
+        if not all([algolia_app_id, algolia_admin_key, algolia_index_name]):
+            raise ValueError("Algolia configuration (APP_ID, ADMIN_KEY, INDEX_NAME) missing.")
+
+        _algolia_client = SearchClientSync(algolia_app_id, algolia_admin_key)
+        logger.info(f"Algolia client initialized for index: {algolia_index_name}")   
+    except Exception as e:
+        logger.error("Failed to initialize Algolia client: %s", e, exc_info=True)
+        # Decide if this should be a fatal error (raise RuntimeError) or allow fallback
+        logger.warning("Algolia client failed to initialize. Keyword search will be unavailable.")
+        _algolia_client = None
+        _algolia_index = None # Ensure index is None if client fails
+
     # --- OpenAI Client ---
     try:
         api_key = app.config['OPENAI_API_KEY']
@@ -98,3 +120,9 @@ def get_openai_client() -> OpenAI:
         # This indicates an issue with the application startup order
         raise RuntimeError("OpenAI client has not been initialized. Ensure init_clients() is called.")
     return openai_client
+
+def get_algolia_client():
+    """ Safely returns the initialized Algolia index instance. """
+    if _algolia_client is None:
+           return None
+    return _algolia_client

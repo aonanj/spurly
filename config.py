@@ -11,18 +11,11 @@ class Config:
     GOOGLE_CLOUD_VERTEX_API_KEY = os.environ.get("GOOGLE_CLOUD_VERTEX_API_KEY", "")
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
-    ## Google Cloud Vertex credentials
-    GOOGLE_CLOUD_PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT_ID", "") ## Google Cloud project ID
-    GOOGLE_VERTEX_AI_LOCATION = os.environ.get("GOOGLE_VERTEX_AI_LOCATION", "") ## Location of the Vertex AI Search App (e.g., "global", "us")
-    GOOGLE_VERTEX_AI_DATASTORE_ID = os.environ.get("GOOGLE_VERTEX_AI_DATASTORE_ID") ##ID of Vertex AI Search Data Store indexing conversations
+    ## Algolia credentials
+    ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
+    ALGOLIA_ADMIN_KEY = os.getenv("ALGOLIA_ADMIN_KEY")
+    ALGOLIA_CONVERSATIONS_INDEX = os.getenv("ALGOLIA_CONVERSATIONS_INDEX", "conversations")
 
-
-    PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT") 
-    REGION = os.environ.get("VERTEX_AI_REGION", "us-central1") # TODO Change Region
-    INDEX_ENDPOINT_ID = os.environ.get("VERTEX_AI_INDEX_ENDPOINT_ID") # Your Vector Search index endpoint ID
-    DEPLOYED_INDEX_ID = os.environ.get("VERTEX_AI_DEPLOYED_INDEX_ID") # Your deployed index ID within the endpoint
-    EMBEDDING_MODEL_ENDPOINT_ID = os.environ.get("VERTEX_AI_EMBEDDING_ENDPOINT_ID") # Your embedding model endpoint ID (e.g., textembedding-gecko)
-    EMBEDDING_DIMENSIONS = 768 # Or the dimension your embedding model outputs
 
     
 
