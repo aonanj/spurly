@@ -1,5 +1,5 @@
 from class_defs.conversation_def import Conversation
-from datetime import datetime, timezone, date, timedelta
+from datetime import datetime, timezone, timedelta
 from flask import g, current_app
 from google.cloud import firestore
 from gpt_training.anonymizer import anonymize_conversation
@@ -187,7 +187,7 @@ def delete_conversation(conversation_id: str) -> dict:
 
 
 ## TODO: Need to refactor the keyword search using Firebase, Vertex AI, Firestore.
-def get_conversations(user_id: str, filters: dict, limit: int) -> list[Conversation]:
+def get_conversations(user_id: str, filters: dict) -> list[Conversation]:
     """
     Searches for conversations based on filters. Uses Algolia for keyword search
     and Firestore for retrieval and other filtering.
@@ -210,6 +210,7 @@ def get_conversations(user_id: str, filters: dict, limit: int) -> list[Conversat
     keyword = filters.get("keyword")
     algolia_client = get_algolia_client()
     aloglia_conversations_index = current_app.config['ALGOLIA_CONVERSATIONS_INDEX']
+    aloglia_search_results_limit = current_app.config['ALGOLIA_SEARCH_RESULTS_LIMIT']
 
     try:
         # --- Use Algolia if keyword is present and client is available ---
@@ -220,7 +221,7 @@ def get_conversations(user_id: str, filters: dict, limit: int) -> list[Conversat
             search_params = {
                 "query": keyword,
                 "filters": f"user_id:{user_id}", # Filter by user_id in Algolia
-                "hitsPerPage": limit * 5, # Fetch more IDs initially in case some are filtered out later
+                "hitsPerPage": aloglia_search_results_limit * 5, # Fetch more IDs initially in case some are filtered out later
                 "attributesToRetrieve": ["objectID"], # Only need the IDs from Algolia
             }
 
@@ -284,7 +285,7 @@ def get_conversations(user_id: str, filters: dict, limit: int) -> list[Conversat
                           for convo_data in conversation_docs if convo_data}
 
             # Re-order based on Algolia's ranking and apply limit
-            ordered_convos = [convos_map[cid] for cid in conversation_ids if cid in convos_map][:limit]
+            ordered_convos = [convos_map[cid] for cid in conversation_ids if cid in convos_map][:aloglia_search_results_limit]
 
             logger.info(f"Returning {len(ordered_convos)} conversations after keyword search and Firestore fetch.")
             return ordered_convos
@@ -316,7 +317,7 @@ def get_conversations(user_id: str, filters: dict, limit: int) -> list[Conversat
 
 
             # Apply sorting and limit
-            query = query.order_by(sort_field, direction=sort_direction).limit(limit)
+            query = query.order_by(sort_field, direction=sort_direction).limit(aloglia_search_results_limit)
 
             docs = query.stream()
             firestore_convos = [Conversation.from_dict(doc.to_dict()) for doc in docs]

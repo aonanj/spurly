@@ -14,19 +14,23 @@ Defines a dataclass named Conversation with the following fields:
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import field as attr_field
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
+
+from attr import field 
 
 @dataclass
 class Conversation:
     user_id: str
     conversation_id: str
-    conversation: List[Dict[str, Any]]
-    connection_id: Optional[str]
-    situation: Optional[str]
-    topic: Optional[str]
-    spurs: Optional[Dict[str, Any]]
     created_at: datetime
+    conversation: List[Dict[str, Any]] = attr_field(default_factory=list) 
+    spurs: Optional[Dict[str, Any]] = attr_field(default_factory=dict) 
+    connection_id: Optional[str] = None
+    situation: Optional[str] = None
+    topic: Optional[str] = None
+
 
     def to_dict(self):
         return {
@@ -43,20 +47,31 @@ class Conversation:
     @classmethod
     def from_dict(cls, data):
         created_at_str = data.get("created_at")
-        created_at = (
-            datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-            if created_at_str else None
-        )
+
         return cls(
             user_id=data["user_id"],
             conversation_id=data["conversation_id"],
-            conversation=data["conversation"],
+            conversation=data.get("conversation", []),
             connection_id=data.get("connection_id"),
             situation=data.get("situation"),
             topic=data.get("topic"),
-            spurs=data.get("spurs"),
-            created_at=created_at
+            spurs=data.get("spurs", {}),
+            created_at=datetime.fromisoformat(created_at_str.replace("Z", "+00:00")) or datetime.now(timezone.utc)
         )
+
+    @classmethod
+    def get_attr(cls, convo_instance: "Conversation", attr_key: str):
+        """
+        Retrieve the value of an attribute from a given Conversation instance.
+
+        Args:
+            convo_instance (Conversation): The conversation object to inspect.
+            attr_key (str): The attribute name to retrieve.
+
+        Returns:
+            Any: The attribute value, or None if the attribute does not exist.
+        """
+        return getattr(convo_instance, attr_key, None)
 
     def conversation_as_string(self) -> str:
         """

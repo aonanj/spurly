@@ -33,12 +33,13 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
         conversation_dict = original_conversation.to_dict()
         conversation_messages = Conversation.from_dict(conversation_dict)
         
-        user_id = original_conversation.get("user_id", "")
+        user_id = conversation_dict.get("user_id", "")
         user_profile = get_user_profile(user_id)
+        user_profile
         user_gender = user_profile.get("gender", "")
 
         connection_id = original_conversation.get("connection_id", "")
-        connection_profile = get_connection_profile(connection_id)
+        connection_profile = get_connection_profile(user_id, connection_id)
         connection_gender = connection_profile.get("gender")
         
         if not all("text" in message and "speaker" in message for message in conversation_messages):
@@ -56,7 +57,7 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
             connection_label = f"(2) {connection_gender.capitalize()} Speaker"
 
         anonymized_messages = []
-        for message in conversation_messages:
+        for key, message in conversation_dict:
             original_speaker = message.get("speaker", "").lower()
             text = message.get("text", "")
 
@@ -78,7 +79,7 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
             situation = conversation_dict.get("situation", "")
             topic = conversation_dict.get("topic", "")
             spurs = conversation_dict.get("spurs", None)
-            created_at = conversation_dict.get("created_at", None)
+            created_at = conversation_dict.get("created_at", datetime.now(timezone.utc))
 
             
             anonymized_conversation = Conversation(
@@ -91,7 +92,7 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
                 spurs=spurs,
                 created_at=created_at
             )
-        save_anonymized_conversation(anonymized_conversation)
+            save_anonymized_conversation(anonymized_conversation)
         return (f"Conversation successfully anonymized with anonymized_conversation_id: {anonymous_conversation_id}")
 
     except Exception as e:

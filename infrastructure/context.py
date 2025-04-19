@@ -1,10 +1,6 @@
 from class_defs.profile_def import UserProfile, ConnectionProfile
-from flask import Blueprint, request, jsonify
-from flask import g, request, jsonify
-from infrastructure.auth import require_auth
-from infrastructure.context import set_current_connection, get_current_connection, clear_current_connection, get_current_user
+from flask import request, jsonify, g
 from infrastructure.logger import get_logger
-from services.connection_service import get_connection_profile
 from services.user_service import get_user_profile
 
 logger = get_logger(__name__)
@@ -32,7 +28,7 @@ def get_current_user() -> UserProfile:
         current_user: User profile of the current user
             UserProfile object
     """
-    return getattr(g, "current_user", None)
+    return getattr(g, "current_user")
 
 def set_current_connection(connection_profile):
     """
@@ -56,7 +52,7 @@ def get_current_connection() -> ConnectionProfile:
         current_connection: Connection profile of a connection loaded by the current user
             ConnectionProfile object
     """
-    return getattr(g, "current_connection", None)
+    return getattr(g, "current_connection")
 
 def clear_current_connection():
     """
@@ -90,69 +86,69 @@ def require_user_context():
     if not get_current_user():
         return jsonify({"error": "Missing user context"}), 401
 
-context_bp = Blueprint("context", __name__)
+# context_bp = Blueprint("context", __name__)
 
-@context_bp.route("/context/connection", methods=["POST"])
-@require_auth
-def set_connection_context():
-    """
-    Sets a connection as active in the current context. 
+# @context_bp.route("/context/connection", methods=["POST"])
+# @require_auth
+# def set_connection_context():
+#     """
+#     Sets a connection as active in the current context. 
     
-    Args
-        N/A
+#     Args
+#         N/A
     
-    Return
-        status: JSON-like structure indicating that a connection is active in the current context 
+#     Return
+#         status: JSON-like structure indicating that a connection is active in the current context 
 
-    """
-    user_profile = get_current_user()
-    if not user_profile:
-        return jsonify({"error": "User context not loaded"}), 401
+#     """
+#     user_profile = get_current_user()
+#     if not user_profile:
+#         return jsonify({"error": "User context not loaded"}), 401
 
-    connection_id = request.json.get("connection_id")
-    if not connection_id:
-        return jsonify({"error": "Missing connection_id"}), 400
+#     connection_id = request.get_json().get("connection_id")
+#     if not connection_id:
+#         return jsonify({"error": "Missing connection_id"}), 400
 
-    connection_profile = get_connection_profile(user_profile.user_id, connection_id)
-    if not connection_profile:
-        logger.error("Failed to load connection profile for active user profile")
-        return jsonify({"error": "Connection profile not found"}), 404
+#     connection_profile = get_connection_profile(user_profile.user_id, connection_id)
+#     if not connection_profile:
+#         logger.error("Failed to load connection profile for active user profile")
+#         return jsonify({"error": "Connection profile not found"}), 404
 
-    set_current_connection(connection_profile)
-    return jsonify({"message": "Connection context set successfully."})
+#     set_current_connection(connection_profile)
+#     return jsonify({"message": "Connection context set successfully."})
 
-@context_bp.route("/context/connection", methods=["DELETE"])
-@require_auth
-def clear_connection_context():
-    """
-    Removes an active connection from the current context. 
+# @context_bp.route("/context/connection", methods=["DELETE"])
+# @require_auth
+# def clear_connection_context():
+#     """
+#     Removes an active connection from the current context. 
     
-    Args
-        N/A
+#     Args
+#         N/A
     
-    Return
-        status: JSON-like structure indicating that active connection cleared from current context 
-    """
+#     Return
+#         status: JSON-like structure indicating that active connection cleared from current context 
+#     """
     
-    clear_current_connection()
-    return jsonify({"message": "Connection context cleared."})
+#     clear_current_connection()
+#     return jsonify({"message": "Connection context cleared."})
 
-@context_bp.route("/context", methods=["GET"])
-@require_auth
-def get_context():
-    """
-    Gets active user and connection profiles from the current context.
+# @context_bp.route("/context", methods=["GET"])
+# @require_auth
+# def get_context():
+#     """
+#     Gets active user and connection profiles from the current context.
     
-    Args
-        N/A
+#     Args
+#         N/A
     
-    Return
-        status: JSON-like structure representing user and connections profiles as dict objects 
-    """
-    user_profile = get_current_user()
-    connection_profile = get_current_connection()
+#     Return
+#         status: JSON-like structure representing user and connections profiles as dict objects 
+#     """
+#     user_profile = get_current_user()
+#     connection_profile = get_current_connection()
 
-    return jsonify({
-        "user_profile": user_profile.to_dict if user_profile else None,
-        "connection_profile": connection_profile.to_dict() if connection_profile else None
-    })
+#     return jsonify({
+#         "user_profile": user_profile.to_dict if user_profile else None,
+#         "connection_profile": connection_profile.to_dict() if connection_profile else None
+#     })

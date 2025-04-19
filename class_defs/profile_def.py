@@ -31,42 +31,78 @@ ConnectionProfile (inherits from BaseProfile):
     from_dict converts a python dictionary into a custom ConnectionProfile object.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 
 @dataclass
 class BaseProfile:
-    name: Optional[str]
-    age: Optional[int]
-    gender: Optional[str]
-    pronouns: Optional[str]
-    school: Optional[str]
-    job: Optional[str]
-    drinking: Optional[str]
-    ethnicity: Optional[str]
-    hometown: Optional[str]
-    greenlights: Optional[List[str]]
-    redlights: Optional[List[str]]
-    personality_traits: Optional[List[str]] = None
+    name: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    pronouns: Optional[str] = None
+    school: Optional[str] = None
+    job: Optional[str] = None
+    drinking: Optional[str] = None
+    ethnicity: Optional[str] = None
+    hometown: Optional[str] = None
+    greenlights: Optional[List[str]] = field(default_factory=list)
+    redlights: Optional[List[str]] = field(default_factory=list)
+
+    
+    personality_traits: Optional[List[str]] = field(default_factory=list)
 
     def to_dict(self):
         return self.__dict__
 
 @dataclass
 class UserProfile(BaseProfile):
-    user_id: str
-    selected_spurs: List[str]
+    user_id: str = ""
+    selected_spurs: List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data):
         return cls(**data)
+
+    @classmethod
+    def get_attr_as_str(cls, profile_instance: "UserProfile", attr_key: str) -> str:
+        """
+        Retrieve the value of an attribute from a given UserProfile instance
+        and return it as a string.
+
+        Args:
+            profile_instance (UserProfile): The profile object to inspect.
+            attr_key (str): The attribute name to retrieve.
+
+        Returns:
+            str: The attribute value converted to a string, or an empty string if
+                 the attribute does not exist or is None.
+        """
+        value = getattr(profile_instance, attr_key, None)
+        return "" if value is None else str(value)
 
 @dataclass
 class ConnectionProfile(BaseProfile):
-    connection_id: str
+    connection_id: str = ""
     # The associated user's ID; every connection must be linked to a user.
-    user_id: str
+    user_id: str = ""
 
     @classmethod
     def from_dict(cls, data):
         return cls(**data)
+
+    @classmethod
+    def get_attr_as_str(cls, profile_instance: "ConnectionProfile", attr_key: str) -> str:
+        """
+        Retrieve the value of an attribute from a given ConnectionProfile instance
+        and return it as a string.
+
+        Args:
+            profile_instance (ConnectionProfile): The profile object to inspect.
+            attr_key (str): The attribute name to retrieve.
+
+        Returns:
+            str: The attribute value converted to a string, or an empty string if
+                 the attribute does not exist or is None.
+        """
+        value = getattr(profile_instance, attr_key, None)
+        return "" if value is None else str(value)

@@ -1,4 +1,4 @@
-from class_defs.profile_def import UserProfile
+from class_defs.profile_def import BaseProfile, UserProfile
 from dataclasses import fields
 from firebase_admin import auth
 from flask import jsonify, current_app, g
@@ -6,7 +6,6 @@ from infrastructure.clients import db
 from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
-default_log_level = current_app.config['DEFAULT_LOG_LEVEL']
 
 def format_user_profile(profile: UserProfile) -> str:
     """
@@ -46,11 +45,11 @@ def format_user_profile(profile: UserProfile) -> str:
                 lines.append(f"{label}: {', '.join(value)}")
         else:
             lines.append(f"{key.capitalize()}: {value}")
-            
+    default_log_level = current_app.config['DEFAULT_LOG_LEVEL']      
     logger.log(default_log_level, "Formatting user profile as text for UX/UI use.")
     return "\n".join(lines)
 
-def save_user_profile(data: UserProfile) -> bool:
+def save_user_profile(user_id: str, data: UserProfile) -> dict:
     """
     
     Saves the current user's profile information to persistent memory (e.g., Firestore).
@@ -63,29 +62,52 @@ def save_user_profile(data: UserProfile) -> bool:
     
     """
     
-    user_id = g.user['user_id']
-    if not user_id:
+    if not user_id: # Check passed user_id
         logger.error("Error: Missing user ID - save user profile failed")
         raise ValueError("Save user profile failed: Missing user ID")
 
-    if not isinstance(data, UserProfile):
-        logger.error("Error: Type mismatch - save user profile failed")
-        raise TypeError("Save user profile failed: Type mismatch")
+    if not isinstance(data, dict):
+         logger.error("Error: Type mismatch (expected dict) - save user profile failed")
+         raise TypeError("Save user profile failed: Input data must be a dictionary")
 
     try:
-        profile = UserProfile.from_dict(data)
-        profile_doc = format_user_profile(profile)
+        # Ensure 'user_id' and default 'selected_spurs' are in the dict
+        data['user_id'] = user_id
+        if 'selected_spurs' not in data:
+             data['selected_spurs'] = list(current_app.config['SPUR_VARIANTS'])
+
+        # Add missing Optional BaseProfile fields as None if not present
+        # This helps UserProfile.from_dict if it expects all fields
+        base_fields = {f.name for f in fields(BaseProfile)}
+        for field_name in base_fields:
+            if field_name not in data:
+                data[field_name] = None # Add missing optional fields as None
+
+        # Ensure all required fields for UserProfile are present before creating object
+        required_user_fields = {'user_id', 'selected_spurs'} # Add others if any become non-optional
+        missing_req = required_user_fields - data.keys()
+        if missing_req:
+             logger.error(f"Missing required fields for UserProfile: {missing_req}")
+             raise ValueError(f"Missing required UserProfile fields: {missing_req}")
+
+
+        profile = UserProfile.from_dict(data) # Create object from dict
+        profile_doc_string = format_user_profile(profile) # Format the object for Firestore string field
+
         user_ref = db.collection("users").document(user_id)
         user_ref.set({
             "user_id": user_id,
-            "profile_entries": profile_doc,
-            "fields": profile.to_dict()
+            "profile_entries": profile_doc_string, # Save the formatted string
+            "fields": profile.to_dict() # Save the structured data
         })
-        logger.log(default_log_level, "User profile successfully saved.")
+        logger.log(current_app.config['DEFAULT_LOG_LEVEL'], "User profile successfully saved.")
+        # Return a success dictionary, matching what the route might expect
         return {"status": "user profile successfully saved"}
     except Exception as e:
-        logger.error("[%s] Error: %s save user profile failed", __name__, e)
-        raise ValueError(f"Save user profile failed: {e}") from e
+        logger.error("[%s] Error: %s save user profile failed", __name__, e, exc_info=True)
+        # Propagate or return an error dict
+        # raise ValueError(f"Save user profile failed: {e}") from e
+        return {"error": f"Save user profile failed: {str(e)}"}
 
 def get_user_profile(user_id) -> UserProfile:
     """
@@ -118,7 +140,7 @@ def get_user_profile(user_id) -> UserProfile:
         logger.error("[%s] Error: %s get user profile failed", __name__, e)
         raise ValueError(f"Get user profile failed: {e}") from e
 
-def update_user_profile(user_id: str, profile_data: UserProfile) -> bool:
+def update_user_profile(user_id: str, profile_data: UserProfile):
     """
     
     Adds or replaces information in the user's profile 
@@ -135,7 +157,7 @@ def update_user_profile(user_id: str, profile_data: UserProfile) -> bool:
         raise ValueError("Error: Missing user ID - update user profile failed")
     
     try:
-        data = profile_data
+        data = profile_data.to_dict()
         profile = UserProfile.from_dict({"user_id": user_id, **data})
         user_ref = db.collection("users").document(user_id)
         user_ref.set({
@@ -243,11 +265,11 @@ def get_selected_spurs(user_id: str) -> list:
         raise ValueError("Error: Missing user ID - update user spur preferences failed")
 
     user_profile = get_user_profile(user_id)
-    selected_spurs = user_profile['selected_spurs']
+    selected_spurs = user_profile.to_dict()['selected_spurs']
 
     
     try:
-        db.collection("users").document(user_id).update({ "selected_spurs": selected_spurs})
+        return db.collection("users").document(user_id).update({ "selected_spurs": selected_spurs})
     except Exception as e:
         logger.error("[%s] Error: %s Update user spur preferences failed", __name__, e)
         raise ValueError(f"Update user spur preferences failed: {e}") from e

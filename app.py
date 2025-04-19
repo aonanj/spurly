@@ -1,3 +1,4 @@
+from config import Config
 from flask import Flask, current_app
 from flask_cors import CORS
 from infrastructure.clients import init_clients
@@ -26,7 +27,7 @@ def create_app():
     app.register_blueprint(context_bp, url_prefix="/context")
     
     level = app.config.get("LOGGER_LEVEL", "INFO")
-    setup_logger(name="spurly", toFile=True, filename="spurly.log", level=level)
+    setup_logger(name="spurly", level=level, toFile=True, fileName="spurly.log")
 
     return app
 

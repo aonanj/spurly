@@ -1,4 +1,4 @@
-from filters import apply_phrase_filter, apply_tone_overrides
+from .filters import apply_phrase_filter, apply_tone_overrides
 from flask import current_app
 from infrastructure.logger import get_logger
 import json

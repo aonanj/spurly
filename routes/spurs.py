@@ -2,14 +2,8 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
-from services.spur_service import get_spur
+from services.spur_service import get_spur, get_saved_spurs, delete_saved_spur, save_spur
 
-from services.storage_service import (
-    get_saved_spurs,
-    get_saved_spur,
-    save_spur,
-    delete_saved_spur,
-)
 
 logger = get_logger(__name__)
 
@@ -84,5 +78,5 @@ def get_spur_bp(spur_id):
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"{err_point} - Error:"}), 400
-    result = get_spur(user_id, spur_id)
+    result = get_spur(spur_id)
     return jsonify(result)

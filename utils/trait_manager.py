@@ -1,7 +1,7 @@
 from flask import current_app
 from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
-from utils.prompt_loader import get_system_prompt
+from utils.prompt_loader import load_system_prompt
 import json
 import openai
 
@@ -38,8 +38,7 @@ Conversation:
 """
 
     try:
-        system_prompt = get_system_prompt()
-
+        system_prompt = load_system_prompt()
         chat_client=get_openai_client()
         response = chat_client.chat.completions.create(
             model=current_app.config['AI_MODEL'],
@@ -48,7 +47,8 @@ Conversation:
                 {"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}
                 ], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
         )
-        output = response.choices[0].message.content.strip()
+
+        output = (response.choices[0].message.content or "").strip()
         return json.loads(output)
     except Exception as e:
         err_point = __package__ or __name__
@@ -78,7 +78,7 @@ Message:
             model=current_app.config['AI_MODEL'],
             messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
         )
-        output = response.choices[0].message.content.strip()
+        output = (response.choices[0].message.content or "").strip()
         return json.loads(output)
     except Exception as e:
         err_point = __package__ or __name__

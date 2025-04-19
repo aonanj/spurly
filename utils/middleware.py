@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from functools import wraps
 from infrastructure.logger import get_logger
-from moderation import moderate_topic
+from .moderation import moderate_topic
 import utils.trait_manager as trait_manager
 
 logger = get_logger(__name__)
@@ -23,7 +23,7 @@ def sanitize_topic(f):
 
         context["topic"] = topic
         context["topic_filtered"] = filtered
-        request.context = context
+        setattr(request, "context", context)
 
         return f(*args, **kwargs)
     return wrapper
@@ -79,7 +79,7 @@ def enrich_context(f):
         
         # Attach enriched data to request context
         
-        request.context = data
+        setattr(request, "context", data)
         
         return f(*args, **kwargs)
     

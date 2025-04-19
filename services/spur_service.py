@@ -1,3 +1,4 @@
+import firebase_admin
 from class_defs.spur_def import Spur
 from flask import g
 from google.cloud import firestore
@@ -18,15 +19,16 @@ def save_spur(user_id, spur):
             raise ValueError("Error: Missing user ID in save_spur")
 
         user_id = g.user['user_id']
-        spur_id = spur.get("spur_id", "")
-        conversation_id = spur.get("conversation_id", "")
-        connection_id = spur.get("connection_id", "")
-        situation = spur.get("situation", "")
-        topic = spur.get("topic","")
-        variant = spur.get("varint", "")
-        tone = spur.get("tone", "")
-        text = spur.get("text", "")
-        created_at = spur.get("created_at", None)
+        spur_dict = Spur.to_dict(spur)
+        spur_id = spur_dict.get("spur_id", "")
+        conversation_id = spur_dict.get("conversation_id", "")
+        connection_id = spur_dict.get("connection_id", "")
+        situation = spur_dict.get("situation", "")
+        topic = spur_dict.get("topic","")
+        variant = spur_dict.get("varint", "")
+        tone = spur_dict.get("tone", "")
+        text = spur_dict.get("text", "")
+        created_at = spur_dict.get("created_at", None)
         
         
         
@@ -118,7 +120,9 @@ def get_spur(spur_id: str) -> Spur:
     
     user_id = extract_user_id_from_other_id(spur_id)
     if not user_id or not spur_id:
-        return {"error": "Missing user_id or spur_id"}, 400
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point} - Missing user_id or spur_id")
+        raise ValueError("Error: Missing user_id or spur_id")
 
     doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
     doc = doc_ref.get()
@@ -128,5 +132,5 @@ def get_spur(spur_id: str) -> Spur:
     else:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 404
+        raise Exception(f"error - {err_point} - Error:")
 

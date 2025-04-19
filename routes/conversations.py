@@ -2,15 +2,12 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
-
+from services.spur_service import save_spur, delete_saved_spur, get_saved_spurs
 from services.storage_service import (
     get_conversations,
-    get_saved_spurs,
     save_conversation,
     get_conversation,
     delete_conversation,
-    save_spur,
-    delete_saved_spur,
 )
 
 logger = get_logger(__name__)
@@ -53,7 +50,7 @@ def save_conversation_bp():
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
-    result = save_conversation(user_id, data)
+    result = save_conversation(data)
     return jsonify(result)
 
 @conversations_bp.route("/conversations/<conversation_id>", methods=["GET"])
@@ -64,7 +61,7 @@ def get_conversation_bp(conversation_id):
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"{err_point} - Error:"}), 400
-    result = get_conversation(user_id, conversation_id)
+    result = get_conversation(conversation_id)
     return jsonify(result)
 
 @conversations_bp.route("/conversations/<conversation_id>", methods=["DELETE"])
@@ -75,7 +72,7 @@ def delete_conversation_bp(conversation_id):
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
-    result = delete_conversation(user_id, conversation_id)
+    result = delete_conversation(conversation_id)
     return jsonify(result)
 
 @conversations_bp.route("/saved-spurs", methods=["GET"])

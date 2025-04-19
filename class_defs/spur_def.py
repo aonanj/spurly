@@ -17,21 +17,21 @@ Defines a dataclass named Spur with the following fields:
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 @dataclass
 class Spur:
     user_id: str
     spur_id: str
-    conversation_id: Optional[str]
-    connection_id: Optional[str]
-    situation: Optional[str]
-    topic: Optional[str]
-    variant: Optional[str]
-    tone: Optional[str]
-    text: Optional[str]
     created_at: datetime
+    conversation_id: Optional[str] = None
+    connection_id: Optional[str] = None
+    situation: Optional[str] = None
+    topic: Optional[str] = None
+    variant: Optional[str] = None
+    tone: Optional[str] = None
+    text: Optional[str] = None
 
     def to_dict(self):
         return {
@@ -50,10 +50,7 @@ class Spur:
     @classmethod
     def from_dict(cls, data):
         created_at_str = data.get("created_at")
-        created_at = (
-            datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-            if created_at_str else None
-        )
+
         return cls(
             user_id=data["user_id"],
             spur_id=data["spur_id"],
@@ -64,5 +61,19 @@ class Spur:
             variant=data.get("variant"),
             tone=data.get("tone"),
             text=data.get("text"),
-            created_at=created_at
+            created_at=datetime.fromisoformat(created_at_str.replace("Z", "+00:00")) or datetime.now(timezone.utc)
         )
+
+    @classmethod
+    def get_attr(cls, spur_instance: "Spur", attr_key: str):
+        """
+        Retrieve the value of an attribute from a given Spur instance.
+
+        Args:
+            spur_instance (Spur): The Spur object to inspect.
+            attr_key (str): The attribute name to retrieve.
+
+        Returns:
+            Any: The attribute value, or None if the attribute does not exist.
+        """
+        return getattr(spur_instance, attr_key, None)

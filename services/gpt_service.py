@@ -1,14 +1,17 @@
+from class_defs.conversation_def import Conversation
+from class_defs.profile_def import ConnectionProfile, UserProfile
 from class_defs.spur_def import Spur
 from datetime import datetime, timezone
 from flask import current_app
 from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
-from services.connection_service import get_connection_profile, get_active_connection_firestore
+from services.connection_service import format_connection_profile, get_connection_profile, get_active_connection_firestore
 from services.storage_service import get_conversation
-from services.user_service import get_user_profile
+from services.user_service import format_user_profile, get_user_profile
+from utils.filters import apply_phrase_filter, apply_tone_overrides
 from utils.gpt_output import parse_gpt_output
-from utils.prompt_loader import get_system_prompt
+from utils.prompt_loader import load_system_prompt
 from utils.prompt_template import build_prompt
 from utils.trait_manager import infer_tone, infer_situation
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
@@ -60,17 +63,22 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
     Returns:
         List of generated Spur objects 
     """
-    user_profile = get_user_profile(user_id)
+    user_profile = UserProfile.to_dict(get_user_profile(user_id))
     if not selected_spurs:
         selected_spurs = user_profile['selected_spurs']
     if connection_id:
         connection_profile = get_connection_profile(user_id, connection_id)
     else:
-        connection_profile = get_active_connection_firestore(user_id, connection_id)
+        active_connection_id = get_active_connection_firestore(user_id)
+        connection_profile = get_connection_profile(user_id, active_connection_id)
 
+    conversation = None
+    conversation_text = ""
     if conversation_id:
         conversation = get_conversation(conversation_id)
-    
+        conversation_text = conversation.conversation_as_string()
+
+    tone = ""
     if conversation and isinstance(conversation, dict):
         tone_info = infer_tone(conversation["conversation"][-1])
         if classify_confidence(tone_info["confidence"]) == "high":
@@ -80,16 +88,25 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
             if classify_confidence(situation_info["confidence"]) == "high":
                 situation = situation_info["situation"]
 
-    context_block = (
-        conversation,
-        user_profile,
-        connection_profile,
-        situation,
-        topic,
-        tone
-    )
+    context_block = ""
+    context_block.join("***User Profile:***\n")
+    
+    user_profile_text = format_user_profile(UserProfile.from_dict(user_profile))
+    context_block.join(f"{user_profile_text}\n\n")
 
-    prompt = build_prompt(selected_spurs, *context_block)
+    context_block.join("***Connection Profile:***\n")
+    connection_profile_text = format_connection_profile(connection_profile)
+    context_block.join(f"{connection_profile_text}\n\n")
+
+    context_block.join("***Conversation Between User and Connection:***\n")
+    context_block.join(f"{conversation_text}\n\n")
+
+    context_block.join(f"***Situation: {situation}\n")
+    context_block.join(f"***Topic: {topic}\n")
+    context_block.join(f"***Tone: {tone}")
+    
+
+    prompt = build_prompt(selected_spurs, context_block)
     fallback_prompt_suffix = (
         "\nKeep all outputs safe, short, and friendly.\n"
     )
@@ -98,11 +115,11 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
         key: "We're having trouble generating something right now. Please try your request again."
         for key in current_app.config['SPUR_VARIANT_ID_KEYS'].keys()
     }
-    
+
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
-            system_prompt = get_system_prompt()
+            system_prompt = load_system_prompt()
 
             openai_client = get_openai_client()
             
@@ -116,8 +133,9 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
                 max_tokens=current_app.config['AI_MAX_TOKENS'],
             )
 
-            raw_output = response.choices[0].message.content if response.choices else ''
-            gpt_parsed_filtered_output = parse_gpt_output(raw_output)
+            # Ensure type is always str: if content is None, fall back to empty string.
+            raw_output: str = (response.choices[0].message.content or '') if response.choices else ''
+            gpt_parsed_filtered_output = parse_gpt_output(raw_output, user_profile, connection_profile.to_dict())
             validated_output = validate_and_normalize_output(gpt_parsed_filtered_output)
             
             user_id = user_profile["user_id"]
@@ -125,21 +143,24 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
             spur_objects = []
             variant_keys = current_app.config['SPUR_VARIANT_ID_KEYS']
 
-            for key in variant_keys.items():
-                spur_text = validated_output(key)
+            # loop over each spur variant (dict key) and its ID letter
+            for variant, _id_key in variant_keys.items():
+                spur_text: str = validated_output.get(variant, "")
                 if spur_text:
-                    spur_objects.append(Spur(
-                        user_id=user_profile.get("user_id", ""),
-                        spur_id=generate_spur_id(user_id),
-                        conversation_id=conversation.get("conversation_id", ""),
-                        connection_id=connection_profile.get("connection_id", ""),
-                        situation=situation or "",
-                        topic=topic or "",
-                        variant=key,
-                        tone=tone or "",
-                        text=spur_text,
-                        created_at=datetime.now(timezone.utc)
-                    ))
+                    spur_objects.append(
+                        Spur(
+                            user_id=user_profile.get("user_id", ""),
+                            spur_id=generate_spur_id(user_id),
+                            conversation_id=conversation.get("conversation_id", "") if isinstance(conversation, dict) else getattr(conversation, "conversation_id", ""),
+                            connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id"),
+                            situation=situation or "",
+                            topic=topic or "",
+                            variant=variant,
+                            tone=tone or "",
+                            text=spur_text,
+                            created_at=datetime.now(timezone.utc),
+                        )
+                    )
 
             return spur_objects
 
@@ -159,6 +180,7 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
 
     # Ensure a return path if the loop finishes without success
     logger.error("All GPT generation attempts failed.")
+    return []
 
 def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str, situation: str, topic: str) -> list:
     """
@@ -182,7 +204,7 @@ def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str,
     """ 
     
     user_profile = get_user_profile(user_id=user_id)
-    selected_spurs = user_profile["selected_spurs"]
+    selected_spurs = user_profile.to_dict()["selected_spurs"]
 
     spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs)
     counter = 0
