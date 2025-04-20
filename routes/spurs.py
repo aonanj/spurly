@@ -7,9 +7,9 @@ from services.spur_service import get_spur, get_saved_spurs, delete_saved_spur, 
 
 logger = get_logger(__name__)
 
-conversations_bp = Blueprint("spurs", __name__)
+spurs_bp = Blueprint("spurs", __name__)
 
-@conversations_bp.route("/spurs", methods=["GET"])
+@spurs_bp.route("/", methods=["GET"])
 @require_auth
 def fetch_saved_spurs_bp():
     user_id = g.user['user_id']
@@ -44,7 +44,7 @@ def fetch_saved_spurs_bp():
     result = get_saved_spurs(user_id, filters)
     return jsonify(result)
 
-@conversations_bp.route("/spurs", methods=["POST"])
+@spurs_bp.route("/", methods=["POST"])
 @require_auth
 def save_spur_bp():
     data = request.get_json()
@@ -58,7 +58,7 @@ def save_spur_bp():
     return jsonify(result)
 
 
-@conversations_bp.route("/spurs/<spur_id>", methods=["DELETE"])
+@spurs_bp.route("/<spur_id>", methods=["DELETE"])
 @require_auth
 def delete_saved_spurs_bp(spur_id):
     user_id = g.user['user_id']
@@ -70,7 +70,7 @@ def delete_saved_spurs_bp(spur_id):
     result = delete_saved_spur(user_id, spur_id)
     return jsonify(result)
 
-@conversations_bp.route("/spurs/<spur_id>", methods=["GET"])
+@spurs_bp.route("/<spur_id>", methods=["GET"])
 @require_auth
 def get_spur_bp(spur_id):
     user_id = g.user['user_id']

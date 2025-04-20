@@ -1,3 +1,4 @@
+from attr import field
 from class_defs.conversation_def import Conversation
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app, g
@@ -15,7 +16,7 @@ def upload_image():
     image = request.files.get("image")
     if not image:
         err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
+        logger.error(f"Error: {err_point} upload_image() failed")
         return jsonify({"error": f"[{err_point}] - Error"}), 400
 
 
@@ -36,13 +37,13 @@ def upload_image():
         conversation_id = generate_conversation_id(user_id)
 
     
-    conversation_msgs = {}    
+    conversation_msgs = []    
     
     convo_obj = Conversation (
         user_id=user_id, 
         connection_id=connection_id, 
         conversation_id=conversation_id,
-        conversation={},
+        conversation=[],
         spurs={},         # Spurs should remain empty unless explicitly supplied or inferred later
         situation=situation,
         topic=topic,
@@ -51,10 +52,10 @@ def upload_image():
     
     
     try:
-        conversation_msgs = process_image(image)
+        conversation_msgs = process_image(user_id, image)
         
         
-        if not isinstance(conversation_msgs, dict) or "conversation" not in conversation_msgs:
+        if not isinstance(conversation_msgs, list):
             err_point = __package__ or __name__
             logger.error(f"[{err_point}] - Invalid conversation object returned")
             return jsonify({"error": f"[{err_point}] - Invalid OCR response"}), 500
@@ -70,6 +71,6 @@ def upload_image():
         return (f"[{err_point}] - Error: {str(e)}"), 500
 
         
-    convo_obj["conversation"] = conversation_msgs
+    convo_obj.conversation = conversation_msgs
     return jsonify({"conversation": convo_obj.to_dict()}), 200
 

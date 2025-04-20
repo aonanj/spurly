@@ -58,7 +58,7 @@ class Config:
 
     LOGGER_LEVEL = os.environ.get("LOGGER_LEVEL", "INFO")
     
-    AI_MODEL = os.environ.get("GPT_MODEL_NAME", "gpt-4")
+    AI_MODEL = os.environ.get("GPT_MODEL_NAME", "gpt-4o")
     AI_MESSAGES_ROLE_SYSTEM = "system"
     AI_MESSAGES_ROLE_USER = "user"
     AI_TEMPERATURE_INITIAL = 0.9

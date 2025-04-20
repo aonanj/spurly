@@ -1,21 +1,21 @@
 # infrastructure/clients.py
 from algoliasearch.search.client import SearchClientSync
+import firebase_admin
 from firebase_admin import initialize_app, firestore, get_app, credentials
 from flask import current_app
-from google.cloud import firestore, vision
 from google.oauth2 import service_account
-from openai import OpenAI
-import firebase_admin 
+import openai
 import os
 
 # Local application imports
 from .logger import get_logger # Use relative import if logger is in the same directory
-
+from google.cloud import firestore, vision_v1
+from google.cloud.vision_v1 import ImageAnnotatorClient, types
 # --- Global Client Variables ---
 # Initialize clients to None initially
 db = None
 vision_client = None
-openai_client = None
+openai_client: openai.OpenAI | None = None
 _algolia_client: SearchClientSync | None = None
 _algolia_index = None  
 
@@ -72,7 +72,7 @@ def init_clients(app):
         if not vision_cred_path or not os.path.exists(vision_cred_path):
              raise FileNotFoundError(f"Vision API key file not found at: {vision_cred_path}")
         vision_creds = service_account.Credentials.from_service_account_file(vision_cred_path)
-        vision_client = vision.ImageAnnotatorClient(credentials=vision_creds)
+        vision_client = vision_v1.ImageAnnotatorClient(credentials=vision_creds)
         logger.info("Google Cloud Vision client initialized.")
     except Exception as e:
         logger.error("Failed to initialize Google Cloud Vision client: %s", e, exc_info=True)
@@ -102,7 +102,7 @@ def init_clients(app):
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in configuration.")
         # Initialize the main OpenAI client object
-        openai_client = OpenAI(api_key=api_key)
+        openai_client = openai.OpenAI(api_key=api_key)
         logger.info("OpenAI client initialized.")
         # If you were using separate clients before, you now access methods via this client:
         # e.g., openai_client.chat.completions.create(...)
@@ -114,10 +114,12 @@ def init_clients(app):
     logger.info("All external clients initialized successfully.")
 
 
-def get_openai_client() -> OpenAI:
+def get_openai_client() -> openai.OpenAI:
     """ Safely returns the initialized OpenAI client instance. """
     if openai_client is None:
         # This indicates an issue with the application startup order
+        raise RuntimeError("OpenAI client has not been initialized. Ensure init_clients() is called.")
+    if openai_client is None:
         raise RuntimeError("OpenAI client has not been initialized. Ensure init_clients() is called.")
     return openai_client
 

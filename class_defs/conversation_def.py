@@ -18,8 +18,6 @@ from dataclasses import field as attr_field
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
-from attr import field 
-
 @dataclass
 class Conversation:
     user_id: str

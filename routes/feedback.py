@@ -9,7 +9,7 @@ feedback_bp = Blueprint("feedback", __name__)
 @feedback_bp.route("/feedback", methods=["POST"])
 @require_auth
 def feedback():
-    data = Spur.to_dict(request.get_json())
+    data = request.get_json()
     
     user_id = g.user['user_id']
     spur = data.get("spur")  # should be a dict representing a Spur
@@ -24,5 +24,7 @@ def feedback():
     if feedback_type == "thumbs_up":
         result = save_spur(user_id, spur_obj)
         anonymize_spur(spur_obj, True)
+    elif feedback_type == "thumbs_down":
+        anonymize_spur(spur_obj, False)
 
     return jsonify(result)

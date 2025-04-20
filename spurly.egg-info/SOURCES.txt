@@ -1,0 +1,8 @@
+setup.py
+spurly.egg-info/PKG-INFO
+spurly.egg-info/SOURCES.txt
+spurly.egg-info/dependency_links.txt
+spurly.egg-info/requires.txt
+spurly.egg-info/top_level.txt
+tests/test_onboarding.py
+tests/test_user_management.py

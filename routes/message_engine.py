@@ -6,10 +6,10 @@ from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
 
-message_bp = Blueprint("message", __name__)
+message_bp = Blueprint("messages", __name__)
 logger = get_logger(__name__)
 
-@message_bp.route("/spurs", methods=["POST"])
+@message_bp.route("/generate", methods=["POST"])
 @require_auth
 @validate_profile
 @enrich_context
@@ -45,16 +45,18 @@ def generate():
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
 
     if not connection_id:
-        connection_id = get_active_connection_firestore(user_id).get("connection_id")
+        connection_id = get_active_connection_firestore(user_id)
     
-    spurs = get_spurs_for_output(
-        user_id=user_id, 
-        connection_id=connection_id, 
-        conversation_id=conversation_id, 
-        situation=situation, 
-        topic=topic,                                       
+    spur_objs = get_spurs_for_output(
+        user_id=user_id,
+        connection_id=connection_id,
+        conversation_id=conversation_id,
+        situation=situation,
+        topic=topic,
     )
+    spurs = [spur.to_dict() for spur in spur_objs]
+    
     return jsonify({
         "user_id": user_id,
-        "spurs": Spur.to_dict(spurs),
+        "spurs": spurs,
     })

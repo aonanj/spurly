@@ -1,6 +1,5 @@
 from infrastructure.logger import get_logger
 from typing import Any, Union, Dict
-import cv2
 import numpy as np
 import re
 
@@ -82,7 +81,7 @@ def crop_top_bottom_cv(img: np.ndarray) -> Union[np.ndarray, None]:
 
     return cropped_image
 
-def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 0.80) -> Union[Dict, str]:
+def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 0.80) -> list[dict]:
     """
     Extracts structured conversation text from a single Vision API page object.
     Filters out UI elements and metadata, identifies speaker by layout, and returns a Conversation object.
@@ -93,7 +92,7 @@ def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 
         confidence_threshold (float): Minimum confidence for a block to be considered readable.
 
     Returns:
-        Conversation: A structured conversation object containing messages and metadata.
+        conversation_messages: list[dict] where each dict object is the speaker and the message. 
     """
     image_width = page.width
     image_height = page.height
@@ -101,7 +100,7 @@ def extract_conversation(user_id: str, page: Any, confidence_threshold: float = 
 
     structured_messages = []
     block_data_for_sorting = []
-
+    is_non_message = True
     # --- Define patterns for filtering ---
     # Patterns requiring a FULL match (timestamps, statuses, exact labels)
     fullmatch_patterns = [

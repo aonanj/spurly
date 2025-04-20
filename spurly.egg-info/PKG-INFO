@@ -1,0 +1,31 @@
+Metadata-Version: 2.4
+Name: spurly
+Version: 0.1.0
+Summary: AI‑powered conversational message assistant for dating apps
+Home-page: https://github.com/aonanj/spurly
+Author: Your Name
+Author-email: you@example.com
+License: MIT
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Requires-Dist: Flask>=2.2
+Requires-Dist: google-cloud-vision>=2.0
+Requires-Dist: firebase-admin>=5.0
+Requires-Dist: openai>=0.27
+Requires-Dist: algoliasearch>=2.0
+Requires-Dist: python-dotenv>=0.19
+Provides-Extra: dev
+Requires-Dist: pydeps>=1.10; extra == "dev"
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: flake8>=5.0; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: license
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

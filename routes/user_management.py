@@ -32,8 +32,8 @@ def update_user_bp():
 def get_user_bp():
     try:
         user_id = g.user['user_id']
-
-        return get_user_profile(user_id)
+        profile = get_user_profile(user_id)
+        return jsonify(profile), 200
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)

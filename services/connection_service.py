@@ -4,16 +4,25 @@ from flask import current_app, jsonify, g
 from infrastructure.clients import db
 from infrastructure.id_generator import generate_connection_id, get_null_connection_id
 from infrastructure.logger import get_logger
+from typing import List, Dict
+from utils.trait_manager import (
+    infer_personality_traits_from_pics,
+    infer_personality_traits_from_links
+)
 
 logger = get_logger(__name__)
 
-def create_connection_profile(data: dict) -> dict:
+def create_connection_profile(data: Dict, images: List[bytes], links: List[str]) -> Dict:
     """
     Creates a ConnectionProfile with data received from the frontend.
 
     Args:
         data: Dictionary representation of the connection information 
             dict
+        images: List of image bytes for personality trait inference
+            List[bytes]
+        links: List of links for personality trait inference
+            List[str]
 
     Returns:
         status: status of creating a connection profile.
@@ -28,6 +37,16 @@ def create_connection_profile(data: dict) -> dict:
     
     profile_data = profile.to_dict()
     profile_data["connection_id"] = connection_id
+
+    pic_traits = infer_personality_traits_from_pics(images) if images else []
+    link_traits = infer_personality_traits_from_links(links) if links else []
+    # Select top 4 traits by confidence score
+    all_traits = pic_traits + link_traits
+    sorted_traits = sorted(all_traits, key=lambda t: t["confidence_score"], reverse=True)
+    combined_traits = sorted_traits[:4]
+    # Store only trait names
+    top_traits = [t["personality_trait"] for t in combined_traits]
+    profile_data["personality_traits"] = top_traits
 
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data)
@@ -51,7 +70,7 @@ def format_connection_profile(connection_profile: ConnectionProfile) -> str:
     Returns:
         str: A multiline formatted string summarizing the profile contents.
     """
-    profile = ConnectionProfile.to_dict(connection_profile)
+    profile = connection_profile.to_dict()
     connection_id = profile.get('connection_id')
     lines = [f"connection_id: {connection_id}"]
 
@@ -69,6 +88,8 @@ def format_connection_profile(connection_profile: ConnectionProfile) -> str:
                 label = "Greenlight Topics" if key == "greenlights" else (
                         "Redlight Topics" if key == "redlights" else key.capitalize())
                 lines.append(f"{label}: {', '.join(value)}")
+                if key == "personality_traits":
+                    lines.append(f"Personality Traits: {', '.join(value)}")
         else:
             lines.append(f"{key.capitalize()}: {value}")
 
@@ -246,7 +267,7 @@ def get_connection_profile(user_id: str, connection_id: str) -> ConnectionProfil
         logger.error("[%s] Error: %s", "cannot get connection profile", e)
         raise TypeError(f"error{e}: cannot get connection profile")
 
-def update_connection_profile(user_id, connection_id, data) -> dict:
+def update_connection_profile(user_id: str, connection_id: str, data: Dict, images: List[bytes], links: List[str]) -> Dict:
     """
     Updates the profile of a connection with data
 
@@ -257,6 +278,10 @@ def update_connection_profile(user_id, connection_id, data) -> dict:
             str
         data: Data to add to profile corresponding to connection ID
             dict
+        images: List of image bytes for personality trait inference
+            List[bytes]
+        links: List of links for personality trait inference
+            List[str]
     Return
         status: status indicating whether connection profile is updated
             dict
@@ -266,6 +291,16 @@ def update_connection_profile(user_id, connection_id, data) -> dict:
         logger.error("Error: Cannot update connection profile - missing user ID or connection ID")
         raise TypeError("Error: Cannot update connection profile - missing user ID or connection ID")
     else:
+        pic_traits = infer_personality_traits_from_pics(images) if images else []
+        link_traits = infer_personality_traits_from_links(links) if links else []
+        # Select top 4 traits by confidence score
+        all_traits = pic_traits + link_traits
+        sorted_traits = sorted(all_traits, key=lambda t: t["confidence_score"], reverse=True)
+        combined_traits = sorted_traits[:4]
+        # Store only trait names
+        top_traits = [t["personality_trait"] for t in combined_traits]
+        data["personality_traits"] = top_traits
+
         try:
             db.collection("users").document(user_id).collection("connections").document(connection_id).update(data)
             return {"status": "connection profile updated"}

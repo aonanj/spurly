@@ -17,7 +17,8 @@ def set_connection_context():
     if not user:
         return jsonify({"error": "User context not loaded"}), 401
 
-    connection_id = request.json.get("connection_id")
+    data = request.get_json(silent=True)
+    connection_id = data.get("connection_id") if isinstance(data, dict) else None
     if not connection_id:
         return jsonify({"error": "Missing connection_id"}), 400
 
