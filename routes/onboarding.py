@@ -59,8 +59,8 @@ def onboarding(): # Removed type hint for simplicity during debug
         for field_name in optional_fields:
              # Map request keys (e.g., greenlight_topics) to profile keys (e.g., greenlights)
              request_key = field_name
-             if field_name == "greenlights": request_key = "greenlight_topics"
-             if field_name == "redlights": request_key = "redlight_topics"
+             if field_name == "greenlights": request_key = "greenlights"
+             if field_name == "redlights": request_key = "redlights"
 
              if request_key in data:
                   profile_data_dict[field_name] = data[request_key]

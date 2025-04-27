@@ -48,7 +48,7 @@ class Config:
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week
 
     ID_DELIMITER = ":"    
-    NULL_CONNECTION_ID = "null_connection_id:p"
+    NULL_CONNECTION_ID = "null_connection_id_p"
     ANONYMOUS_ID_INDICATOR = "a"
     USER_ID_INDICATOR = "u"
     CONVERSATION_ID_INDICATOR = "c"   

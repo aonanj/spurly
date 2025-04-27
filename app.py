@@ -8,7 +8,7 @@ from routes.context_route import context_bp
 from routes.conversations import conversations_bp
 from routes.spurs import spurs_bp
 from routes.feedback import feedback_bp
-from routes.message_engine import message_bp
+from routes.message_engine import generate_bp
 from routes.ocr import ocr_bp
 from routes.onboarding import onboarding_bp
 from routes.user_management import user_management_bp
@@ -26,7 +26,7 @@ def create_app():
     app.register_blueprint(conversations_bp, url_prefix="/conversations")
     app.register_blueprint(user_management_bp, url_prefix="/user")
     app.register_blueprint(context_bp, url_prefix="/context")
-    app.register_blueprint(message_bp, url_prefix="/spurs")
+    app.register_blueprint(generate_bp, url_prefix="/generate")
     
     level = app.config.get("LOGGER_LEVEL", "INFO")
     setup_logger(name="spurly", level=level, toFile=True, fileName="spurly.log")

@@ -44,7 +44,9 @@ class BaseProfile:
     job: Optional[str] = None
     drinking: Optional[str] = None
     ethnicity: Optional[str] = None
+    current_city: Optional[str] = None
     hometown: Optional[str] = None
+    looking_for: Optional[str] = None
     greenlights: Optional[List[str]] = field(default_factory=list)
     redlights: Optional[List[str]] = field(default_factory=list)
 

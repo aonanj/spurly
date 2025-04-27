@@ -6,17 +6,17 @@ from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
 
-message_bp = Blueprint("messages", __name__)
+generate_bp = Blueprint("generate", __name__)
 logger = get_logger(__name__)
 
-@message_bp.route("/generate", methods=["POST"])
+@generate_bp.route("/generate", methods=["POST"])
 @require_auth
 @validate_profile
 @enrich_context
 @sanitize_topic
 def generate():
     """
-    POST /generate-message
+    POST /generate
 
     Receives conversation context and user/POI sketches, sends to GPT engine for Spur generation.
 
