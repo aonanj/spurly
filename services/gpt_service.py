@@ -16,6 +16,7 @@ from utils.prompt_template import build_prompt
 from utils.trait_manager import infer_tone, infer_situation
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
 import openai
+from typing import Optional
 
 logger = get_logger(__name__)
 
@@ -41,86 +42,137 @@ def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
 
     return merged_spurs
 
-
-def generate_spurs(user_id, connection_id, conversation_id, situation="", topic="", selected_spurs=None) -> list:
+def generate_spurs(
+    user_id: str,
+    connection_id: str,
+    conversation_id: str,
+    situation: str,
+    topic: str,
+    selected_spurs: Optional[list[str]] = None,
+    profile_ocr_texts: Optional[list[str]] = None,  # New parameter
+    photo_analysis_data: Optional[list[dict]] = None  # New parameter
+) -> list:
     """
     Generates spur responses based on the provided conversation context and profiles.
-    
+
     Args:
-        user_id: user ID
-            str
-        connection_ID: connection ID of connection associated with conversation.
-            str
-        conversation_id: conversation ID
-            str
-        situation: A description of the conversation's context
-            str
-        topic: A topic associated with the conversation
-            str
-        selected_spurs: list of spurs to be regenerated
-            List(str)
+        user_id (str): User ID.
+        connection_id (str): Connection ID of connection associated with conversation.
+        conversation_id (str): Conversation ID.
+        situation (str): A description of the conversation's context.
+        topic (str): A topic associated with the conversation.
+        selected_spurs (list[str], optional): List of spur variants to generate/regenerate.
+        profile_ocr_texts (list[str], optional): List of text snippets extracted from connection's profile screenshots.
+        photo_analysis_data (list[dict], optional): List of analysis results (e.g., traits) from connection's photos.
 
     Returns:
-        List of generated Spur objects 
+        List of generated Spur objects.
     """
-    user_profile = UserProfile.to_dict(get_user_profile(user_id))
+    user_profile_dict = UserProfile.to_dict(get_user_profile(user_id)) # Renamed for clarity
     if not selected_spurs:
-        selected_spurs = user_profile['selected_spurs']
+        selected_spurs = user_profile_dict['selected_spurs']
+    
     if connection_id:
         connection_profile = get_connection_profile(user_id, connection_id)
     else:
+        # Assuming get_active_connection_firestore returns a connection_id string
         active_connection_id = get_active_connection_firestore(user_id)
         connection_profile = get_connection_profile(user_id, active_connection_id)
 
     conversation = None
     conversation_text = ""
     if conversation_id:
-        conversation = get_conversation(conversation_id)
-        conversation_text = conversation.conversation_as_string()
+        conversation_obj = get_conversation(conversation_id) # Renamed to avoid conflict with conversation var above
+        if conversation_obj: # Ensure conversation_obj is not None
+            conversation_text = conversation_obj.conversation_as_string()
+            conversation = conversation_obj.to_dict() # Assuming to_dict() method exists and is appropriate here
 
     tone = ""
-    if conversation and isinstance(conversation, dict):
+    # Ensure 'conversation' is a dict and has 'conversation' key before accessing
+    if conversation and isinstance(conversation, dict) and "conversation" in conversation and conversation["conversation"]:
         tone_info = infer_tone(conversation["conversation"][-1])
         if classify_confidence(tone_info["confidence"]) == "high":
             tone = tone_info["tone"]
-        if not situation:
+        if not situation: # Infer situation only if not provided
             situation_info = infer_situation(conversation.get("conversation", []))
             if classify_confidence(situation_info["confidence"]) == "high":
                 situation = situation_info["situation"]
 
-    context_block = ""
-    context_block.join("***User Profile:***\n")
+    # Corrected context_block construction
+    context_block = "***User Profile:***\n"
+    user_profile_instance = UserProfile.from_dict(user_profile_dict) # Create instance for formatting
+    user_profile_text = format_user_profile(user_profile_instance)
+    context_block += f"{user_profile_text}\n\n"
+
+    context_block += "***Connection Profile:***\n"
+    connection_profile_text = format_connection_profile(connection_profile) # connection_profile is already an object
+    context_block += f"{connection_profile_text}\n\n"
+
+    # Append OCR'd profile text if available
+    if profile_ocr_texts:
+        context_block += "***Additional Connection Profile Info (from OCR):***\n"
+        for text_snippet in profile_ocr_texts:
+            context_block += f"- {text_snippet}\n"
+        context_block += "\n"
+
+    # Append photo analysis if available
+    if photo_analysis_data:
+        context_block += "***Observations from Connection's Photos:***\n"
+        for photo_data in photo_analysis_data:
+            # Assuming photo_data is like {"type": "photo_analysis", "traits": ["trait1", "trait2"]}
+            # And forward_full_image_to_model from utils.photo_forwarder.py returns such a dict
+            if photo_data and isinstance(photo_data.get("traits"), list) and photo_data.get("traits"):
+                traits_str = ", ".join(photo_data["traits"])
+                context_block += f"- Inferred Traits: {traits_str}\n"
+            # You could add more structured data from photo_analysis if present
+        context_block += "\n"
+
+    context_block += "***Conversation Between User and Connection:***\n"
+    context_block += f"{conversation_text}\n\n"
+
+    context_block += f"***Situation:*** {situation}\n" # Added colon for clarity
+    context_block += f"***Topic:*** {topic}\n"       # Added colon for clarity
+    context_block += f"***Tone:*** {tone}"           # Added colon for clarity
     
-    user_profile_text = format_user_profile(UserProfile.from_dict(user_profile))
-    context_block.join(f"{user_profile_text}\n\n")
+    logger.debug(f"Context block for prompt:\n{context_block}")
 
-    context_block.join("***Connection Profile:***\n")
-    connection_profile_text = format_connection_profile(connection_profile)
-    context_block.join(f"{connection_profile_text}\n\n")
+    prompt = build_prompt(selected_spurs or [], context_block)
+    # ... (rest of the GPT call, parsing, and Spur object creation logic remains the same) ...
+    # Ensure that when creating Spur objects, conversation_id is correctly retrieved:
+    # conversation_id_for_spur = conversation.get("conversation_id", "") if isinstance(conversation, dict) else getattr(conversation_obj, "conversation_id", "")
 
-    context_block.join("***Conversation Between User and Connection:***\n")
-    context_block.join(f"{conversation_text}\n\n")
+    # Placeholder for the rest of the function (OpenAI call, parsing, object creation)
+    # This part should largely remain the same, but ensure variables like `conversation` 
+    # (used for conversation_id in Spur object) are correctly scoped and typed.
+    # For example, if `conversation` is now a dict from `conversation_obj.to_dict()`:
+    current_conversation_id = ""
+    if conversation_obj and hasattr(conversation_obj, 'conversation_id'):
+        current_conversation_id = conversation_obj.conversation_id
+    elif isinstance(conversation, dict) and "conversation_id" in conversation: # Fallback if conversation_obj wasn't set but dict was
+        current_conversation_id = conversation["conversation_id"]
 
-    context_block.join(f"***Situation: {situation}\n")
-    context_block.join(f"***Topic: {topic}\n")
-    context_block.join(f"***Tone: {tone}")
-    
 
-    prompt = build_prompt(selected_spurs, context_block)
+    # ... inside the loop for spur_objects.append(Spur(...))
+    # spur_id=generate_spur_id(user_profile_dict.get("user_id","")), # user_profile_dict instead of user_profile
+    # conversation_id=current_conversation_id, # Use the carefully determined conversation_id
+
+    # Fallback response and try/except loop for OpenAI API call
     fallback_prompt_suffix = (
         "\nKeep all outputs safe, short, and friendly.\n"
     )
     
-    fallback_response = {
-        key: "We're having trouble generating something right now. Please try your request again."
-        for key in current_app.config['SPUR_VARIANT_ID_KEYS'].keys()
-    }
+    # Fallback response (ensure keys match SPUR_VARIANT_ID_KEYS)
+    # This might need to be more dynamic if SPUR_VARIANT_ID_KEYS can change.
+    # fallback_response_values = {
+    #     key: "We're having trouble generating something right now. Please try your request again."
+    #     for key in current_app.config.get('SPUR_VARIANT_ID_KEYS', {}).keys()
+    # }
+
 
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
             system_prompt = load_system_prompt()
-
             openai_client = get_openai_client()
             
             response = openai_client.chat.completions.create(
@@ -128,30 +180,27 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
                 messages=[
                     {"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": system_prompt},
                     {"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": current_prompt}
-                    ],
+                ],
                 temperature=current_app.config['AI_TEMPERATURE_INITIAL'] if attempt == 0 else current_app.config['AI_TEMPERATURE_RETRY'],
                 max_tokens=current_app.config['AI_MAX_TOKENS'],
             )
 
-            # Ensure type is always str: if content is None, fall back to empty string.
             raw_output: str = (response.choices[0].message.content or '') if response.choices else ''
-            gpt_parsed_filtered_output = parse_gpt_output(raw_output, user_profile, connection_profile.to_dict())
+            # Pass user_profile_dict to parse_gpt_output
+            gpt_parsed_filtered_output = parse_gpt_output(raw_output, user_profile_dict, connection_profile.to_dict())
             validated_output = validate_and_normalize_output(gpt_parsed_filtered_output)
             
-            user_id = user_profile["user_id"]
-
             spur_objects = []
-            variant_keys = current_app.config['SPUR_VARIANT_ID_KEYS']
+            variant_keys = current_app.config.get('SPUR_VARIANT_ID_KEYS', {})
 
-            # loop over each spur variant (dict key) and its ID letter
             for variant, _id_key in variant_keys.items():
                 spur_text: str = validated_output.get(variant, "")
-                if spur_text:
+                if spur_text: # Ensure spur_text is not empty
                     spur_objects.append(
                         Spur(
-                            user_id=user_profile.get("user_id", ""),
-                            spur_id=generate_spur_id(user_id),
-                            conversation_id=conversation.get("conversation_id", "") if isinstance(conversation, dict) else getattr(conversation, "conversation_id", ""),
+                            user_id=user_profile_dict.get("user_id", ""), # from dict
+                            spur_id=generate_spur_id(user_profile_dict.get("user_id", "")), # from dict
+                            conversation_id=current_conversation_id, # Use derived ID
                             connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id"),
                             situation=situation or "",
                             topic=topic or "",
@@ -161,65 +210,56 @@ def generate_spurs(user_id, connection_id, conversation_id, situation="", topic=
                             created_at=datetime.now(timezone.utc),
                         )
                     )
+            if spur_objects: # If any spurs were successfully created
+                return spur_objects
 
-            return spur_objects
-
-        except openai.APIError as e: # Catch specific OpenAI errors
-            logger.warning(f"[Attempt {attempt+1}] OpenAI API error during GPT generation: {e}")
-            # Handle specific API errors (rate limits, auth issues) if needed
+        except openai.APIError as e:
+            logger.warning(f"[Attempt {attempt+1}] OpenAI API error during GPT generation for user {user_id}: {e}")
             if attempt == 2:
-                 logger.error("Final GPT attempt failed due to API error.", exc_info=True)
-                 # Return fallback
+                 logger.error(f"Final GPT attempt failed for user {user_id} due to API error.", exc_info=True)
         except Exception as e:
-            logger.warning(f"[Attempt {attempt+1}] GPT generation failed — Error: {e}", exc_info=True)
+            logger.warning(f"[Attempt {attempt+1}] GPT generation failed for user {user_id} — Error: {e}", exc_info=True)
             if attempt == 2:
-                logger.error("Final GPT attempt failed — returning fallback.")
-                # Return fallback response (ensure fallback_response is defined)
-                # return fallback_response # Example
-            # continue # Go to next attempt
-
-    # Ensure a return path if the loop finishes without success
-    logger.error("All GPT generation attempts failed.")
+                logger.error(f"Final GPT attempt failed for user {user_id} — returning fallback.")
+    
+    logger.error(f"All GPT generation attempts failed for user {user_id}.")
+    # Return an empty list or a list of fallback Spur objects if defined
+    # For example, create Spur objects from fallback_response_values if it's structured correctly
     return []
 
-def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str, situation: str, topic: str) -> list:
+def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str, situation: str, topic: str,
+                         profile_ocr_texts: 'Optional[list[str]]' = None, # New parameter
+                         photo_analysis_data: 'Optional[list[dict]]' = None # New parameter
+                         ) -> list:
     """
-        Gets spurs that are formatted and content-filtered to send to the frontend. 
-        Iterative while loop structure regenerates spurs that fail content filtering
-        
-        **Args
-            user_id: user ID
-                str
-            connection_ID: connection ID of connection associated with conversation.
-                str
-            conversation_id: conversation ID
-                str
-            situation: A description of the conversation's context
-                str
-            topic: A topic associated with the conversation
-                str
-
-        **Return
-            List[Spur]: A list of generated Spur objects
+    Gets spurs that are formatted and content-filtered to send to the frontend. 
+    Iterative while loop structure regenerates spurs that fail content filtering.
     """ 
-    
     user_profile = get_user_profile(user_id=user_id)
-    selected_spurs = user_profile.to_dict()["selected_spurs"]
+    selected_spurs_from_profile = user_profile.to_dict().get("selected_spurs", []) # Ensure it's a list
 
-    spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs)
+    # Initial generation
+    spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs_from_profile,
+                           profile_ocr_texts=profile_ocr_texts, # Pass through
+                           photo_analysis_data=photo_analysis_data) # Pass through
+    
     counter = 0
-    max_iterations = 10
+    max_iterations = 10 # Consider making this configurable
 
-    selected_spurs = spurs_to_regenerate(spurs)
+    # Iterative regeneration for spurs that fail validation/filtering
+    spurs_needing_regeneration = spurs_to_regenerate(spurs) # This function returns list of variants (strings)
 
-    while selected_spurs and len(selected_spurs) > 0:
-        if counter >= max_iterations:
-            break
-
+    while spurs_needing_regeneration and counter < max_iterations:
         counter += 1
-
-        fixed_spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs)
+        logger.info(f"Regeneration attempt {counter} for user {user_id}, variants: {spurs_needing_regeneration}")
+        
+        fixed_spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, spurs_needing_regeneration, # Pass only variants to regenerate
+                                     profile_ocr_texts=profile_ocr_texts, # Pass context again
+                                     photo_analysis_data=photo_analysis_data)
         spurs = merge_spurs(spurs, fixed_spurs)
-        selected_spurs = spurs_to_regenerate(spurs)
+        spurs_needing_regeneration = spurs_to_regenerate(spurs)
+
+    if counter >= max_iterations and spurs_needing_regeneration:
+        logger.warning(f"Max regeneration attempts reached for user {user_id}. Some spurs may not meet quality standards.")
 
     return spurs

@@ -22,37 +22,56 @@ def generate():
 
     Expected JSON fields:
     - conversation_id (str)
-    - conversation (list of dicts)
-    - user_profile (dict)
-    - connection_profile (dict)
+    - connection_id (str)
     - situation (str)
     - topic (str)
-
-    Returns:
-    - dict: Spurs by tone or error message
+    - profile_ocr_texts (list[str], optional): Text from connection's profile OCR.
+    - photo_analysis_data (list[dict], optional): Analysis from connection's photos.
     """
-
     data = request.get_json()
-    user_id = g.user['user_id']
+    if not data:
+        logger.warning("No JSON data received in /generate request.")
+        return jsonify({'error': "Request must be JSON"}), 400
+
+    user_id_from_g = getattr(g, 'user', {}).get('user_id') # Safely access user_id from g.user
+    if not user_id_from_g:
+        logger.error("User ID not found in g.user for /generate route.")
+        return jsonify({'error': "Authentication error: User ID not available."}), 401
+    
+    user_id = user_id_from_g # Use the authenticated user_id
+
     conversation_id = data.get("conversation_id", "")
-    connection_id = data.get("connection_id", "")
+    connection_id = data.get("connection_id", "") # Client should provide this
     situation = data.get("situation", "")
     topic = data.get("topic", "")
-
-    if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+    
+    # New: Get OCR data from the request payload
+    profile_ocr_texts = data.get("profile_ocr_texts") # Defaults to None if not present
+    photo_analysis_data = data.get("photo_analysis_data") # Defaults to None if not present
 
     if not connection_id:
+        # Fallback to active connection if not provided by client; consider if this is desired
+        # If OCR data is connection-specific, client should always provide connection_id.
+        logger.info(f"No connection_id provided for user {user_id}, attempting to get active connection.")
         connection_id = get_active_connection_firestore(user_id)
+        if not connection_id:
+            logger.error(f"No connection_id provided and no active connection found for user {user_id}.")
+            return jsonify({'error': "Connection ID is required or an active connection must be set."}), 400
     
+    logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
+    if profile_ocr_texts:
+        logger.info(f"Using {len(profile_ocr_texts)} OCR'd profile snippets.")
+    if photo_analysis_data:
+        logger.info(f"Using analysis from {len(photo_analysis_data)} photos.")
+
     spur_objs = get_spurs_for_output(
         user_id=user_id,
         connection_id=connection_id,
         conversation_id=conversation_id,
         situation=situation,
         topic=topic,
+        profile_ocr_texts=profile_ocr_texts,       # Pass new data
+        photo_analysis_data=photo_analysis_data  # Pass new data
     )
     spurs = [spur.to_dict() for spur in spur_objs]
     
